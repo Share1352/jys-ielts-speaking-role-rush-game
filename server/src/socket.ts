@@ -21,16 +21,14 @@ import {
 import { buildTeacherPayload, buildStudentPayload, buildViewerPayload } from './payloads.js';
 import { startTimer, pauseTimer, stopTimer, resetTimer } from './timers.js';
 import type { RoomState, SpeakerBonusCategory } from './state.js';
+import { TOPIC_CATEGORIES } from './data/topicSituations.js';
+import { CHAOS_CARDS } from './data/chaosCards.js';
 
 const rooms = new Map<string, RoomState>();
 
-const TOPICS = [
-  'A city is trying to reduce traffic and pollution. The council must choose a fair solution for different groups of people.',
-  'Many teenagers want flexible careers instead of traditional stable jobs. The council must discuss what schools should do to prepare them.',
-  'Tourism is growing quickly in a small town. Local people are worried about prices, noise, and changes to culture.'
-];
-const ROLES = ['data_analyst', 'strict_parent', 'startup_founder', 'environmental_activist', 'school_principal', 'public_health_doctor'];
-const CHAOS = ['use_one_idiom', 'change_your_position_midway', 'include_a_personal_example', 'propose_a_compromise', 'mention_a_risk'];
+const ROLE_POOL = TOPIC_CATEGORIES.flatMap((topic) => topic.roleCards.map((role) => role.id));
+const TOPIC_PROMPTS = TOPIC_CATEGORIES.map((topic) => topic.publicSituation);
+const CHAOS_POOL = CHAOS_CARDS.map((card) => card.id);
 
 function shuffle<T>(items: T[]): T[] {
   const arr = [...items];
@@ -40,6 +38,26 @@ function shuffle<T>(items: T[]): T[] {
   }
   return arr;
 }
+
+function pickAssignments(playerIds: string[], pool: string[]): Record<string, string> {
+  const assignments: Record<string, string> = {};
+  const shuffled = shuffle(pool);
+  playerIds.forEach((playerId, index) => {
+    assignments[playerId] = shuffled[index % shuffled.length];
+  });
+  return assignments;
+}
+
+function ensurePromptsCompliant(prompts: string[]): void {
+  for (const prompt of prompts) {
+    if (prompt.includes('?')) throw new Error('Public prompts must not include question marks');
+    if (/\bdo you think\b|\bshould\b/i.test(prompt)) {
+      throw new Error('Public prompts must avoid IELTS-question phrasing');
+    }
+  }
+}
+
+ensurePromptsCompliant(TOPIC_PROMPTS);
 
 function getRoomOrThrow(roomCode: string): RoomState {
   const room = rooms.get(roomCode.toUpperCase());
@@ -113,10 +131,9 @@ export function registerSocketHandlers(io: Server): void {
     socket.on('teacher:start_round', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
       const eligible = room.playerOrder.filter((id) => !room.players[id].removed && !room.players[id].waitingForNextRound);
-      const rolePool = shuffle(ROLES); const chaosPool = shuffle(CHAOS);
-      const roleByPlayer: Record<string, string> = {}; const chaosByPlayer: Record<string, string> = {};
-      eligible.forEach((id, idx) => { roleByPlayer[id] = rolePool[idx % rolePool.length]; chaosByPlayer[id] = chaosPool[idx % chaosPool.length]; });
-      startRound(room, TOPICS[Math.floor(Math.random() * TOPICS.length)], roleByPlayer, chaosByPlayer);
+      const roleByPlayer = pickAssignments(eligible, ROLE_POOL);
+      const chaosByPlayer = pickAssignments(eligible, CHAOS_POOL);
+      startRound(room, TOPIC_PROMPTS[Math.floor(Math.random() * TOPIC_PROMPTS.length)], roleByPlayer, chaosByPlayer);
       emitRoleStates(io, room);
     }));
 

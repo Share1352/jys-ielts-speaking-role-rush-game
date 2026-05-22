@@ -62,12 +62,24 @@ export function applyReroll(room: RoomState, playerId: string, type: 'role'|'cha
   if (!p) throw new Error('Player not in current round');
   if (type === 'role') {
     if (p.rerolledRole) throw new Error('Role reroll already used');
+    if (hasAlternativeUniqueValue(round, playerId, 'role') && Object.values(round.playerRound).some((other) => other !== p && other.roleId === newValue)) throw new Error('Role must be unique when possible');
     p.roleId = newValue; p.rerolledRole = true; p.rerollRolePenalty = -1;
   } else {
     if (p.rerolledChaos) throw new Error('Chaos reroll already used');
+    if (hasAlternativeUniqueValue(round, playerId, 'chaos') && Object.values(round.playerRound).some((other) => other !== p && other.chaosCardId === newValue)) throw new Error('Chaos card must be unique when possible');
     p.chaosCardId = newValue; p.rerolledChaos = true; p.rerollChaosPenalty = -1;
   }
   room.players[playerId].score += -1;
+}
+
+
+function hasAlternativeUniqueValue(round: RoundState, playerId: string, type: 'role'|'chaos'): boolean {
+  const values = Object.entries(round.playerRound)
+    .filter(([id]) => id !== playerId)
+    .map(([, state]) => (type === 'role' ? state.roleId : state.chaosCardId))
+    .filter((value): value is string => Boolean(value));
+  const own = type === 'role' ? round.playerRound[playerId]?.roleId : round.playerRound[playerId]?.chaosCardId;
+  return !own || values.includes(own);
 }
 
 export function lockPrep(room: RoomState): void { if (room.phase === 'prep') transitionPhase(room, 'ready_to_speak'); }
