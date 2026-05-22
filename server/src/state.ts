@@ -1,27 +1,8 @@
-export type RoomPhase =
-  | 'lobby'
-  | 'round_setup'
-  | 'prep'
-  | 'ready_to_speak'
-  | 'speaker_selection'
-  | 'speaking'
-  | 'speaker_finished'
-  | 'guesses_revealed'
-  | 'scoring'
-  | 'secret_revealed'
-  | 'round_complete';
+import type { RoomPhase, SpeakerBonusCategory } from '@jys/shared';
+export { SPEAKER_BONUS_CATEGORIES } from '@jys/shared';
+export type { RoomPhase, SpeakerBonusCategory } from '@jys/shared';
 
 export type GuessResult = 'exact' | 'partial' | 'miss';
-
-export const SPEAKER_BONUS_CATEGORIES = [
-  'used_idiom',
-  'used_advanced_sentence_structure',
-  'completed_chaos_card',
-  'fulfilled_role',
-  'almost_no_grammar_or_pronunciation_mistakes'
-] as const;
-
-export type SpeakerBonusCategory = (typeof SPEAKER_BONUS_CATEGORIES)[number];
 
 export interface PlayerState {
   id: string;

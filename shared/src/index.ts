@@ -1,4 +1,15 @@
-export type RoomPhase = 'lobby' | 'prep' | 'speaker' | 'guess-review' | 'round-complete';
+export type RoomPhase =
+  | 'lobby'
+  | 'round_setup'
+  | 'prep'
+  | 'ready_to_speak'
+  | 'speaker_selection'
+  | 'speaking'
+  | 'speaker_finished'
+  | 'guesses_revealed'
+  | 'scoring'
+  | 'secret_revealed'
+  | 'round_complete';
 
 export type SpeakerBonusCategory =
   | 'used_idiom'
@@ -7,11 +18,28 @@ export type SpeakerBonusCategory =
   | 'fulfilled_role'
   | 'almost_no_grammar_or_pronunciation_mistakes';
 
+export const SPEAKER_BONUS_CATEGORIES: SpeakerBonusCategory[] = [
+  'used_idiom',
+  'used_advanced_sentence_structure',
+  'completed_chaos_card',
+  'fulfilled_role',
+  'almost_no_grammar_or_pronunciation_mistakes'
+];
+
+export type TimerKind = 'prep' | 'speaker' | 'follow_up';
+
+export interface TimerState {
+  kind: TimerKind;
+  durationSec: number;
+  remainingSec: number;
+  running: boolean;
+  startedAtEpochMs: number | null;
+}
+
 export interface RoundTimerState {
-  prepSecondsRemaining: number;
-  speakerSecondsRemaining: number;
-  isRunning: boolean;
-  startedAtEpochMs?: number;
+  prepTimer: TimerState;
+  speakerTimer: TimerState;
+  followUpTimer: TimerState;
 }
 
 export interface GuessSubmission {

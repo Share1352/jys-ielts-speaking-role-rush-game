@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { io, type Socket } from 'socket.io-client';
-import type { SpeakerBonusCategory } from '@jys/shared';
+import type { RoomPhase, SpeakerBonusCategory } from '@jys/shared';
 
 type GuessResult = 'exact' | 'partial' | 'miss';
 
 type AnyPayload = any;
+
+const ROOM_PHASE = {
+  prep: 'prep',
+  speaking: 'speaking'
+} as const satisfies Record<'prep' | 'speaking', RoomPhase>;
 
 const bonusCategories: Array<{ id: SpeakerBonusCategory; label: string }> = [
   { id: 'used_idiom', label: 'Used an idiom' },
@@ -138,9 +143,9 @@ function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: string })
 
   const round = payload?.publicState?.activeRound;
   const selfId = payload?.selfPlayerId;
-  const canGuess = round?.phase === 'speaking' && round?.speakerTimer?.running && round?.currentSpeakerId !== selfId;
-  const canRequestFollow = round?.phase === 'speaking' && round?.speakerTimer?.running;
-  const canReroll = round?.phase === 'prep';
+  const canGuess = round?.phase === ROOM_PHASE.speaking && round?.speakerTimer?.running && round?.currentSpeakerId !== selfId;
+  const canRequestFollow = round?.phase === ROOM_PHASE.speaking && round?.speakerTimer?.running;
+  const canReroll = round?.phase === ROOM_PHASE.prep;
 
   return <main><h1>Join Room {roomCode}</h1>
     {!payload && <div><input value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' /><button onClick={join}>Join</button></div>}
