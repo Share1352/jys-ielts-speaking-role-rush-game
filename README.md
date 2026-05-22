@@ -101,6 +101,29 @@ After `npm run build`:
 
 ## Deployment notes
 
+### Wix hosting page setup (English Academy main site)
+
+Use this app as an external hosted web app, then link/embed it from your Wix page at `www.jysenglish.com`:
+
+1. Deploy this repository to Render (or any Node host) so you get a public URL, e.g. `https://jys-role-rush.onrender.com`.
+2. In Wix Editor for **English Academy** site:
+   - Add a new page (example name: **IELTS Role Rush Host**).
+   - Add short host instructions and three CTA buttons:
+     - **Open Host Setup Page** → deployed app root `/`
+     - **Student Join Link Format** → `/join/:roomCode`
+     - **Viewer Link Format** → `/viewer/:roomCode`
+3. Optional: add an **Embed -> Embed a Site** element and set it to your deployed app root URL.
+4. Publish Wix site and test the full flow end-to-end with a teacher and at least one student device.
+
+Recommended page copy for teachers:
+
+- Open Host Setup Page.
+- Generate room code and host token.
+- Open teacher link privately.
+- Share student link to learners.
+- Open viewer link on shared screen.
+
+
 ### Render (included)
 
 `render.yaml` already defines:
