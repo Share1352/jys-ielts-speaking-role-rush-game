@@ -24,8 +24,10 @@ import type { RoomState, SpeakerBonusCategory } from './state.js';
 import { TOPIC_CATEGORIES } from './data/topicSituations.js';
 import { CHAOS_CARDS } from './data/chaosCards.js';
 import { buildRoomExport, toCsv } from './export.js';
+import { sanitizeGuessInput, sanitizeName, sanitizeRoomCode } from './sanitize.js';
 
 const rooms = new Map<string, RoomState>();
+const INACTIVITY_TTL_MS = 6 * 60 * 60 * 1000;
 
 const ROLE_POOL = TOPIC_CATEGORIES.flatMap((topic) => topic.roleCards.map((role) => role.id));
 const TOPIC_PROMPTS = TOPIC_CATEGORIES.map((topic) => topic.publicSituation);
@@ -61,9 +63,32 @@ function ensurePromptsCompliant(prompts: string[]): void {
 ensurePromptsCompliant(TOPIC_PROMPTS);
 
 function getRoomOrThrow(roomCode: string): RoomState {
-  const room = rooms.get(roomCode.toUpperCase());
+  const room = rooms.get(sanitizeRoomCode(roomCode));
   if (!room) throw new Error('Room not found');
   return room;
+}
+
+function touchRoom(room: RoomState): void {
+  room.lastActivityEpochMs = Date.now();
+}
+
+function evictStaleRooms(): number {
+  const cutoff = Date.now() - INACTIVITY_TTL_MS;
+  let evicted = 0;
+  for (const [code, room] of rooms.entries()) {
+    if (room.lastActivityEpochMs < cutoff) {
+      rooms.delete(code);
+      evicted += 1;
+    }
+  }
+  return evicted;
+}
+
+export function startRoomCleanupScheduler(intervalMs = 10 * 60 * 1000): NodeJS.Timeout {
+  return setInterval(() => {
+    const evicted = evictStaleRooms();
+    if (evicted > 0) console.log(`Evicted ${evicted} inactive room(s)`);
+  }, intervalMs);
 }
 
 function emitRoleStates(io: Server, room: RoomState): void {
@@ -89,11 +114,11 @@ function withAck(ack: ((payload: unknown) => void) | undefined, fn: () => void):
 export function registerSocketHandlers(io: Server): void {
   io.on('connection', (socket: Socket) => {
     socket.on('room:create', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
-      const code = String(roomCode || '').toUpperCase();
-      if (!code) throw new Error('roomCode required');
+      const code = sanitizeRoomCode(String(roomCode || ''));
       if (rooms.has(code)) throw new Error('Room already exists');
       const room = createRoom(code, String(hostToken || randomUUID()));
       rooms.set(code, room);
+      touchRoom(room);
       socket.join(`room:${code}:teacher`);
       emitRoleStates(io, room);
       ack?.({ ok: true, roomCode: code, hostToken: room.hostToken });
@@ -102,21 +127,30 @@ export function registerSocketHandlers(io: Server): void {
     socket.on('teacher:connect', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode);
       requireTeacher(room, hostToken);
+      touchRoom(room);
       socket.join(`room:${room.code}:teacher`);
       socket.emit('room:state', buildTeacherPayload(room, hostToken));
     }));
 
     socket.on('student:join', ({ roomCode, displayName, playerId }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode);
+      if (room.locked) throw new Error('Room is locked');
       let id = playerId as string | undefined;
+      const cleanedName = sanitizeName(String(displayName || ''));
       if (!id || !room.players[id] || room.players[id].removed) {
         id = randomUUID();
         const seat = room.playerOrder.length + 1;
-        room.players[id] = { id, displayName: String(displayName || `Student ${seat}`), seat, connected: true, waitingForNextRound: false, removed: false, score: 0 };
+        const fallbackName = `Student ${seat}`;
+        room.players[id] = { id, displayName: cleanedName || fallbackName, seat, connected: true, waitingForNextRound: room.phase !== 'lobby', removed: false, score: 0 };
         room.playerOrder.push(id);
       } else {
+        if (room.players[id].waitingForNextRound && room.phase === 'lobby') {
+          room.players[id].waitingForNextRound = false;
+        }
+        if (cleanedName) room.players[id].displayName = cleanedName;
         room.players[id].connected = true;
       }
+      touchRoom(room);
       socket.join(`room:${room.code}:student:${id}`);
       socket.emit('room:state', buildStudentPayload(room, id));
       emitRoleStates(io, room);
@@ -125,12 +159,14 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on('viewer:connect', ({ roomCode }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode);
+      touchRoom(room);
       socket.join(`room:${room.code}:viewer`);
       socket.emit('room:state', buildViewerPayload(room));
     }));
 
     socket.on('teacher:startRound', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      touchRoom(room);
       const eligible = room.playerOrder.filter((id) => !room.players[id].removed && !room.players[id].waitingForNextRound);
       const roleByPlayer = pickAssignments(eligible, ROLE_POOL);
       const chaosByPlayer = pickAssignments(eligible, CHAOS_POOL);
@@ -138,12 +174,15 @@ export function registerSocketHandlers(io: Server): void {
       emitRoleStates(io, room);
     }));
     socket.on('teacher:startPrep', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); emitRoleStates(io, room);
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); emitRoleStates(io, room);
     }));
 
     socket.on('student:reconnect', ({ roomCode, playerId }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireStudent(room, playerId);
+      if (room.locked) throw new Error('Room is locked');
+      if (room.players[playerId].waitingForNextRound && room.phase === 'lobby') room.players[playerId].waitingForNextRound = false;
       room.players[playerId].connected = true;
+      touchRoom(room);
       socket.join(`room:${room.code}:student:${playerId}`);
       socket.emit('room:state', buildStudentPayload(room, playerId));
       emitRoleStates(io, room);
@@ -155,13 +194,17 @@ export function registerSocketHandlers(io: Server): void {
       const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); applyReroll(room, playerId, 'chaos', chaosCardId); emitRoleStates(io, room);
     }));
     socket.on('student:submitGuess', ({ roomCode, playerId, guessedRoleId, guessedChaosCardId }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); submitGuess(room, playerId, guessedRoleId, guessedChaosCardId); emitRoleStates(io, room);
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId);
+      touchRoom(room);
+      submitGuess(room, playerId, sanitizeGuessInput(String(guessedRoleId || '')), sanitizeGuessInput(String(guessedChaosCardId || '')));
+      emitRoleStates(io, room);
     }));
     socket.on('student:requestFollowUp', ({ roomCode, playerId }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); requestFollowUp(room, playerId); emitRoleStates(io, room);
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); touchRoom(room); requestFollowUp(room, playerId); emitRoleStates(io, room);
     }));
     socket.on('student:cancelFollowUpRequest', ({ roomCode, playerId }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireStudent(room, playerId);
+      touchRoom(room);
       const round = room.activeRound;
       if (!round) throw new Error('No active round');
       round.followUp.requesterIds = round.followUp.requesterIds.filter((id) => id !== playerId);
@@ -171,6 +214,7 @@ export function registerSocketHandlers(io: Server): void {
 
     socket.on('teacher:spinSpeaker', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      touchRoom(room);
       const round = room.activeRound;
       if (!round || round.speakersRemaining.length === 0) throw new Error('No eligible speakers');
       const speakerId = round.speakersRemaining[Math.floor(Math.random() * round.speakersRemaining.length)];
@@ -179,48 +223,59 @@ export function registerSocketHandlers(io: Server): void {
     }));
     socket.on('teacher:startSpeakerTimer', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
+      touchRoom(room);
       room.activeRound.speakerTimer = startTimer(room.activeRound.speakerTimer);
       emitRoleStates(io, room);
     }));
     socket.on('teacher:pauseTimer', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
+      touchRoom(room);
       room.activeRound.speakerTimer = pauseTimer(room.activeRound.speakerTimer);
       emitRoleStates(io, room);
     }));
     socket.on('teacher:stopTimer', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
+      touchRoom(room);
       room.activeRound.speakerTimer = stopTimer(room.activeRound.speakerTimer); finishSpeaking(room);
       emitRoleStates(io, room);
     }));
     socket.on('teacher:resetTimer', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
+      touchRoom(room);
       room.activeRound.speakerTimer = resetTimer(room.activeRound.speakerTimer);
       emitRoleStates(io, room);
     }));
-    socket.on('teacher:scoreGuess', ({ roomCode, hostToken, guesserId, roleResult, chaosResult }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); scoreGuessForPlayer(room, guesserId, roleResult, chaosResult); emitRoleStates(io, room); }));
-    socket.on('teacher:setSpeakerBonus', ({ roomCode, hostToken, speakerId, category }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); awardSpeakerBonus(room, speakerId, category as SpeakerBonusCategory); emitRoleStates(io, room); }));
-    socket.on('teacher:spinFollowUpWheel', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+    socket.on('teacher:scoreGuess', ({ roomCode, hostToken, guesserId, roleResult, chaosResult }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); scoreGuessForPlayer(room, guesserId, roleResult, chaosResult); emitRoleStates(io, room); }));
+    socket.on('teacher:setSpeakerBonus', ({ roomCode, hostToken, speakerId, category }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); awardSpeakerBonus(room, speakerId, category as SpeakerBonusCategory); emitRoleStates(io, room); }));
+    socket.on('teacher:setRoomLock', ({ roomCode, hostToken, locked }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      room.locked = Boolean(locked);
+      touchRoom(room);
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:spinFollowUpWheel', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room);
       const requesterIds = room.activeRound?.followUp.requesterIds ?? [];
       if (requesterIds.length === 0) throw new Error('No follow-up requesters');
       selectFollowUpRequester(room, requesterIds[Math.floor(Math.random() * requesterIds.length)]);
       emitRoleStates(io, room);
     }));
-    socket.on('teacher:awardFollowUpPoint', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); awardFollowUpPoint(room); emitRoleStates(io, room); }));
-    socket.on('teacher:endRound', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); nextSpeakerOrRoundComplete(room); emitRoleStates(io, room); }));
+    socket.on('teacher:awardFollowUpPoint', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); awardFollowUpPoint(room); emitRoleStates(io, room); }));
+    socket.on('teacher:endRound', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); nextSpeakerOrRoundComplete(room); emitRoleStates(io, room); }));
     socket.on('teacher:resetGame', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      touchRoom(room);
       room.activeRound = null; room.roundHistory = []; room.phase = 'lobby';
-      Object.values(room.players).forEach((p) => { p.score = 0; });
+      Object.values(room.players).forEach((p) => { p.score = 0; p.waitingForNextRound = false; });
       emitRoleStates(io, room);
     }));
     socket.on('teacher:exportResults', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room);
       const results = room.playerOrder.map((id) => room.players[id]).filter(Boolean).map((p) => ({ id: p.id, displayName: p.displayName, seat: p.seat, score: p.score }));
       ack?.({ ok: true, roomCode: room.code, results });
     }));
     socket.on('teacher:export', ({ roomCode, hostToken, format }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room);
       const rows = buildRoomExport(room);
       if (format === 'json') {
         ack?.({ ok: true, roomCode: room.code, format: 'json', content: JSON.stringify(rows, null, 2) });
@@ -228,12 +283,12 @@ export function registerSocketHandlers(io: Server): void {
       }
       ack?.({ ok: true, roomCode: room.code, format: 'csv', content: toCsv(rows) });
     }));
-    socket.on('teacher:revealGuesses', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); revealGuesses(room); emitRoleStates(io, room); }));
-    socket.on('teacher:revealSecret', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); revealSecret(room); emitRoleStates(io, room); }));
-    socket.on('teacher:nextSpeaker', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); nextSpeakerOrRoundComplete(room); emitRoleStates(io, room); }));
-    socket.on('teacher:lockPrep', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); lockPrep(room); emitRoleStates(io, room); }));
-    socket.on('teacher:selectSpeaker', ({ roomCode, hostToken, speakerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); selectSpeaker(room, speakerId); emitRoleStates(io, room); }));
-    socket.on('teacher:enterScoring', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); enterScoring(room); emitRoleStates(io, room); }));
-    socket.on('teacher:selectFollowUpRequester', ({ roomCode, hostToken, playerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); selectFollowUpRequester(room, playerId); emitRoleStates(io, room); }));
+    socket.on('teacher:revealGuesses', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); revealGuesses(room); emitRoleStates(io, room); }));
+    socket.on('teacher:revealSecret', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); revealSecret(room); emitRoleStates(io, room); }));
+    socket.on('teacher:nextSpeaker', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); nextSpeakerOrRoundComplete(room); emitRoleStates(io, room); }));
+    socket.on('teacher:lockPrep', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); lockPrep(room); emitRoleStates(io, room); }));
+    socket.on('teacher:selectSpeaker', ({ roomCode, hostToken, speakerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); selectSpeaker(room, speakerId); emitRoleStates(io, room); }));
+    socket.on('teacher:enterScoring', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); enterScoring(room); emitRoleStates(io, room); }));
+    socket.on('teacher:selectFollowUpRequester', ({ roomCode, hostToken, playerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); selectFollowUpRequester(room, playerId); emitRoleStates(io, room); }));
   });
 }

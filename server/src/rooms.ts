@@ -20,7 +20,8 @@ const canTransition: Record<RoomPhase, RoomPhase[]> = {
 };
 
 export function createRoom(code: string, hostToken: string): RoomState {
-  return { code, hostToken, phase: 'lobby', locked: false, createdAtEpochMs: Date.now(), players: {}, playerOrder: [], activeRound: null, roundHistory: [] };
+  const now = Date.now();
+  return { code, hostToken, phase: 'lobby', locked: false, createdAtEpochMs: now, lastActivityEpochMs: now, players: {}, playerOrder: [], activeRound: null, roundHistory: [] };
 }
 
 export function transitionPhase(room: RoomState, next: RoomPhase): void {

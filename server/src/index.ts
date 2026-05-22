@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import { registerSocketHandlers } from './socket.js';
+import { registerSocketHandlers, startRoomCleanupScheduler } from './socket.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,3 +33,9 @@ httpServer.listen(port, () => {
 });
 
 registerSocketHandlers(io);
+const cleanupTimer = startRoomCleanupScheduler();
+
+process.on('SIGTERM', () => {
+  clearInterval(cleanupTimer);
+  httpServer.close(() => process.exit(0));
+});
