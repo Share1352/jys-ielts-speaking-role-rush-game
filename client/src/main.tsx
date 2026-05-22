@@ -73,28 +73,28 @@ function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; roomCode
   };
 
   return <main><h1>Teacher Dashboard · {roomCode}</h1><p>{error}</p>
-    <button onClick={() => run('teacher:start_round')}>Start Round</button>
-    <button onClick={() => run('teacher:lock_prep')}>Lock Prep</button>
-    <button onClick={() => run('teacher:reveal_guesses')}>Reveal Guesses</button>
-    <button onClick={() => run('teacher:enter_scoring')}>Enter Scoring</button>
-    <button onClick={() => run('teacher:reveal_secret')}>Reveal Secret</button>
-    <button onClick={() => run('teacher:next_speaker')}>Next Speaker</button>
+    <button onClick={() => run('teacher:startRound')}>Start Round</button>
+    <button onClick={() => run('teacher:lockPrep')}>Lock Prep</button>
+    <button onClick={() => run('teacher:revealGuesses')}>Reveal Guesses</button>
+    <button onClick={() => run('teacher:enterScoring')}>Enter Scoring</button>
+    <button onClick={() => run('teacher:revealSecret')}>Reveal Secret</button>
+    <button onClick={() => run('teacher:nextSpeaker')}>Next Speaker</button>
     <button onClick={doExport}>Export Scores</button>
     <button onClick={() => window.location.reload()}>Reset Local View</button>
 
     <h2>Speaker / Timer Controls</h2>
-    {players.map((p: any) => <button key={p.id} onClick={() => run('teacher:select_speaker', { speakerId: p.id })}>{p.displayName}</button>)}
-    <button onClick={() => run('teacher:speaker_timer', { action: 'start' })}>Start Timer</button>
-    <button onClick={() => run('teacher:speaker_timer', { action: 'pause' })}>Pause Timer</button>
-    <button onClick={() => run('teacher:speaker_timer', { action: 'stop' })}>Stop Timer</button>
-    <button onClick={() => run('teacher:speaker_timer', { action: 'reset' })}>Reset Timer</button>
+    {players.map((p: any) => <button key={p.id} onClick={() => run('teacher:selectSpeaker', { speakerId: p.id })}>{p.displayName}</button>)}
+    <button onClick={() => run('teacher:startSpeakerTimer')}>Start Timer</button>
+    <button onClick={() => run('teacher:pauseTimer')}>Pause Timer</button>
+    <button onClick={() => run('teacher:stopTimer')}>Stop Timer</button>
+    <button onClick={() => run('teacher:resetTimer')}>Reset Timer</button>
 
     <h2>Follow-up Controls</h2>
     {(round?.followUp?.requesterIds ?? []).map((id: string) => {
       const p = publicState.players[id];
-      return <button key={id} onClick={() => run('teacher:select_follow_up', { playerId: id })}>Select {p?.displayName}</button>;
+      return <button key={id} onClick={() => run('teacher:selectFollowUpRequester', { playerId: id })}>Select {p?.displayName}</button>;
     })}
-    <button onClick={() => run('teacher:award_follow_up')}>Award +1 Follow-up</button>
+    <button onClick={() => run('teacher:awardFollowUpPoint')}>Award +1 Follow-up</button>
 
     <h2>Scoring</h2>
     {(round?.guesses ?? []).map((g: any) => {
@@ -102,14 +102,14 @@ function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; roomCode
       return <div key={`${g.guesserPlayerId}-${g.targetSpeakerId}`}>
         <strong>{p?.displayName}</strong>
         {(['exact', 'partial', 'miss'] as GuessResult[]).map((r) =>
-          <button key={`r-${r}`} onClick={() => run('teacher:score_guess', { guesserId: g.guesserPlayerId, roleResult: r, chaosResult: 'miss' })}>Role {r}</button>
+          <button key={`r-${r}`} onClick={() => run('teacher:scoreGuess', { guesserId: g.guesserPlayerId, roleResult: r, chaosResult: 'miss' })}>Role {r}</button>
         )}
       </div>;
     })}
 
     <h2>Speaker Bonuses</h2>
     {round?.currentSpeakerId && bonusCategories.map((b) =>
-      <button key={b.id} onClick={() => run('teacher:bonus', { speakerId: round.currentSpeakerId, category: b.id })}>{b.label}</button>
+      <button key={b.id} onClick={() => run('teacher:setSpeakerBonus', { speakerId: round.currentSpeakerId, category: b.id })}>{b.label}</button>
     )}
 
     <h2>Scoreboard</h2>
@@ -149,16 +149,16 @@ function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: string })
     <h2>My Secret Cards</h2>
     <p>Role: {payload?.selfPrivateState?.roleId ?? 'N/A'}</p>
     <p>Chaos: {payload?.selfPrivateState?.chaosCardId ?? 'N/A'}</p>
-    <button disabled={!canReroll || payload?.selfPrivateState?.rerolledRole} onClick={() => call(socket, 'student:reroll_role', { roomCode, playerId: selfId, roleId: roleOptions[Math.floor(Math.random()*roleOptions.length)] })}>Reroll Role (-1)</button>
-    <button disabled={!canReroll || payload?.selfPrivateState?.rerolledChaos} onClick={() => call(socket, 'student:reroll_chaos', { roomCode, playerId: selfId, chaosCardId: chaosOptions[Math.floor(Math.random()*chaosOptions.length)] })}>Reroll Chaos (-1)</button>
+    <button disabled={!canReroll || payload?.selfPrivateState?.rerolledRole} onClick={() => call(socket, 'student:rerollRole', { roomCode, playerId: selfId, roleId: roleOptions[Math.floor(Math.random()*roleOptions.length)] })}>Reroll Role (-1)</button>
+    <button disabled={!canReroll || payload?.selfPrivateState?.rerolledChaos} onClick={() => call(socket, 'student:rerollChaos', { roomCode, playerId: selfId, chaosCardId: chaosOptions[Math.floor(Math.random()*chaosOptions.length)] })}>Reroll Chaos (-1)</button>
 
     <h2>Guess Speaker</h2>
     <select value={guessRole} onChange={(e) => setGuessRole(e.target.value)} disabled={!canGuess}>{roleOptions.map((o) => <option key={o}>{o}</option>)}</select>
     <select value={guessChaos} onChange={(e) => setGuessChaos(e.target.value)} disabled={!canGuess}>{chaosOptions.map((o) => <option key={o}>{o}</option>)}</select>
-    <button disabled={!canGuess} onClick={() => call(socket, 'student:submit_guess', { roomCode, playerId: selfId, guessedRoleId: guessRole, guessedChaosCardId: guessChaos })}>Submit / Edit Guess</button>
+    <button disabled={!canGuess} onClick={() => call(socket, 'student:submitGuess', { roomCode, playerId: selfId, guessedRoleId: guessRole, guessedChaosCardId: guessChaos })}>Submit / Edit Guess</button>
 
     <h2>Follow-up</h2>
-    <button disabled={!canRequestFollow} onClick={() => call(socket, 'student:request_follow_up', { roomCode, playerId: selfId })}>Request Follow-up Question</button>
+    <button disabled={!canRequestFollow} onClick={() => call(socket, 'student:requestFollowUp', { roomCode, playerId: selfId })}>Request Follow-up Question</button>
   </main>;
 }
 

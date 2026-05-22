@@ -128,7 +128,7 @@ export function registerSocketHandlers(io: Server): void {
       socket.emit('room:state', buildViewerPayload(room));
     }));
 
-    socket.on('teacher:start_round', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+    socket.on('teacher:startRound', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
       const eligible = room.playerOrder.filter((id) => !room.players[id].removed && !room.players[id].waitingForNextRound);
       const roleByPlayer = pickAssignments(eligible, ROLE_POOL);
@@ -136,37 +136,94 @@ export function registerSocketHandlers(io: Server): void {
       startRound(room, TOPIC_PROMPTS[Math.floor(Math.random() * TOPIC_PROMPTS.length)], roleByPlayer, chaosByPlayer);
       emitRoleStates(io, room);
     }));
-
-    socket.on('student:reroll_role', ({ roomCode, playerId, roleId }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); applyReroll(room, playerId, 'role', roleId); emitRoleStates(io, room);
-    }));
-    socket.on('student:reroll_chaos', ({ roomCode, playerId, chaosCardId }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); applyReroll(room, playerId, 'chaos', chaosCardId); emitRoleStates(io, room);
-    }));
-    socket.on('student:submit_guess', ({ roomCode, playerId, guessedRoleId, guessedChaosCardId }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); submitGuess(room, playerId, guessedRoleId, guessedChaosCardId); emitRoleStates(io, room);
-    }));
-    socket.on('student:request_follow_up', ({ roomCode, playerId }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); requestFollowUp(room, playerId); emitRoleStates(io, room);
+    socket.on('teacher:startPrep', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); emitRoleStates(io, room);
     }));
 
-    socket.on('teacher:lock_prep', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); lockPrep(room); emitRoleStates(io, room); }));
-    socket.on('teacher:select_speaker', ({ roomCode, hostToken, speakerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); selectSpeaker(room, speakerId); emitRoleStates(io, room); }));
-    socket.on('teacher:speaker_timer', ({ roomCode, hostToken, action }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
-      if (action === 'start') room.activeRound.speakerTimer = startTimer(room.activeRound.speakerTimer);
-      if (action === 'pause') room.activeRound.speakerTimer = pauseTimer(room.activeRound.speakerTimer);
-      if (action === 'stop') { room.activeRound.speakerTimer = stopTimer(room.activeRound.speakerTimer); finishSpeaking(room); }
-      if (action === 'reset') room.activeRound.speakerTimer = resetTimer(room.activeRound.speakerTimer);
+    socket.on('student:reconnect', ({ roomCode, playerId }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId);
+      room.players[playerId].connected = true;
+      socket.join(`room:${room.code}:student:${playerId}`);
+      socket.emit('room:state', buildStudentPayload(room, playerId));
       emitRoleStates(io, room);
     }));
-    socket.on('teacher:reveal_guesses', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); revealGuesses(room); emitRoleStates(io, room); }));
-    socket.on('teacher:enter_scoring', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); enterScoring(room); emitRoleStates(io, room); }));
-    socket.on('teacher:score_guess', ({ roomCode, hostToken, guesserId, roleResult, chaosResult }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); scoreGuessForPlayer(room, guesserId, roleResult, chaosResult); emitRoleStates(io, room); }));
-    socket.on('teacher:bonus', ({ roomCode, hostToken, speakerId, category }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); awardSpeakerBonus(room, speakerId, category as SpeakerBonusCategory); emitRoleStates(io, room); }));
-    socket.on('teacher:select_follow_up', ({ roomCode, hostToken, playerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); selectFollowUpRequester(room, playerId); emitRoleStates(io, room); }));
-    socket.on('teacher:award_follow_up', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); awardFollowUpPoint(room); emitRoleStates(io, room); }));
-    socket.on('teacher:reveal_secret', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); revealSecret(room); emitRoleStates(io, room); }));
-    socket.on('teacher:next_speaker', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); nextSpeakerOrRoundComplete(room); emitRoleStates(io, room); }));
+    socket.on('student:rerollRole', ({ roomCode, playerId, roleId }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); applyReroll(room, playerId, 'role', roleId); emitRoleStates(io, room);
+    }));
+    socket.on('student:rerollChaos', ({ roomCode, playerId, chaosCardId }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); applyReroll(room, playerId, 'chaos', chaosCardId); emitRoleStates(io, room);
+    }));
+    socket.on('student:submitGuess', ({ roomCode, playerId, guessedRoleId, guessedChaosCardId }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); submitGuess(room, playerId, guessedRoleId, guessedChaosCardId); emitRoleStates(io, room);
+    }));
+    socket.on('student:requestFollowUp', ({ roomCode, playerId }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); requestFollowUp(room, playerId); emitRoleStates(io, room);
+    }));
+    socket.on('student:cancelFollowUpRequest', ({ roomCode, playerId }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId);
+      const round = room.activeRound;
+      if (!round) throw new Error('No active round');
+      round.followUp.requesterIds = round.followUp.requesterIds.filter((id) => id !== playerId);
+      if (round.followUp.selectedRequesterId === playerId) round.followUp.selectedRequesterId = null;
+      emitRoleStates(io, room);
+    }));
+
+    socket.on('teacher:spinSpeaker', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      const round = room.activeRound;
+      if (!round || round.speakersRemaining.length === 0) throw new Error('No eligible speakers');
+      const speakerId = round.speakersRemaining[Math.floor(Math.random() * round.speakersRemaining.length)];
+      selectSpeaker(room, speakerId);
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:startSpeakerTimer', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
+      room.activeRound.speakerTimer = startTimer(room.activeRound.speakerTimer);
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:pauseTimer', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
+      room.activeRound.speakerTimer = pauseTimer(room.activeRound.speakerTimer);
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:stopTimer', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
+      room.activeRound.speakerTimer = stopTimer(room.activeRound.speakerTimer); finishSpeaking(room);
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:resetTimer', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); if (!room.activeRound) throw new Error('No active round');
+      room.activeRound.speakerTimer = resetTimer(room.activeRound.speakerTimer);
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:scoreGuess', ({ roomCode, hostToken, guesserId, roleResult, chaosResult }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); scoreGuessForPlayer(room, guesserId, roleResult, chaosResult); emitRoleStates(io, room); }));
+    socket.on('teacher:setSpeakerBonus', ({ roomCode, hostToken, speakerId, category }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); awardSpeakerBonus(room, speakerId, category as SpeakerBonusCategory); emitRoleStates(io, room); }));
+    socket.on('teacher:spinFollowUpWheel', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      const requesterIds = room.activeRound?.followUp.requesterIds ?? [];
+      if (requesterIds.length === 0) throw new Error('No follow-up requesters');
+      selectFollowUpRequester(room, requesterIds[Math.floor(Math.random() * requesterIds.length)]);
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:awardFollowUpPoint', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); awardFollowUpPoint(room); emitRoleStates(io, room); }));
+    socket.on('teacher:endRound', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); nextSpeakerOrRoundComplete(room); emitRoleStates(io, room); }));
+    socket.on('teacher:resetGame', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      room.activeRound = null; room.roundHistory = []; room.phase = 'lobby';
+      Object.values(room.players).forEach((p) => { p.score = 0; });
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:exportResults', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      const results = room.playerOrder.map((id) => room.players[id]).filter(Boolean).map((p) => ({ id: p.id, displayName: p.displayName, seat: p.seat, score: p.score }));
+      ack?.({ ok: true, roomCode: room.code, results });
+    }));
+    socket.on('teacher:revealGuesses', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); revealGuesses(room); emitRoleStates(io, room); }));
+    socket.on('teacher:revealSecret', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); revealSecret(room); emitRoleStates(io, room); }));
+    socket.on('teacher:nextSpeaker', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); nextSpeakerOrRoundComplete(room); emitRoleStates(io, room); }));
+    socket.on('teacher:lockPrep', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); lockPrep(room); emitRoleStates(io, room); }));
+    socket.on('teacher:selectSpeaker', ({ roomCode, hostToken, speakerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); selectSpeaker(room, speakerId); emitRoleStates(io, room); }));
+    socket.on('teacher:enterScoring', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); enterScoring(room); emitRoleStates(io, room); }));
+    socket.on('teacher:selectFollowUpRequester', ({ roomCode, hostToken, playerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); selectFollowUpRequester(room, playerId); emitRoleStates(io, room); }));
   });
 }
