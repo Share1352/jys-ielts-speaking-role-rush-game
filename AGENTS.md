@@ -55,7 +55,7 @@ Include:
 - .gitignore
 - package scripts for install, dev, build, typecheck, and start
 
-## Important gameplay rules
+## Critical gameplay rules
 
 The app must not use IELTS questions.
 
@@ -71,7 +71,7 @@ Examples of unacceptable prompts:
 
 - "Do you think technology will replace teachers?"
 - "Should schools ban AI?"
-- Any visible prompt ending in a question mark
+- Any visible prompt ending in a question mark.
 
 ## Speaker bonus categories
 
@@ -99,7 +99,7 @@ Each student may reroll their role and chaos card separately.
 
 ## Guess rules
 
-Listeners guess the current speaker’s hidden role and chaos card.
+Listeners guess the current speaker's hidden role and chaos card.
 
 Guess inputs are open only while the speaker timer is running.
 
