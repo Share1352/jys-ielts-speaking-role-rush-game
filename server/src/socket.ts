@@ -23,6 +23,7 @@ import { startTimer, pauseTimer, stopTimer, resetTimer } from './timers.js';
 import type { RoomState, SpeakerBonusCategory } from './state.js';
 import { TOPIC_CATEGORIES } from './data/topicSituations.js';
 import { CHAOS_CARDS } from './data/chaosCards.js';
+import { buildRoomExport, toCsv } from './export.js';
 
 const rooms = new Map<string, RoomState>();
 
@@ -217,6 +218,15 @@ export function registerSocketHandlers(io: Server): void {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
       const results = room.playerOrder.map((id) => room.players[id]).filter(Boolean).map((p) => ({ id: p.id, displayName: p.displayName, seat: p.seat, score: p.score }));
       ack?.({ ok: true, roomCode: room.code, results });
+    }));
+    socket.on('teacher:export', ({ roomCode, hostToken, format }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
+      const rows = buildRoomExport(room);
+      if (format === 'json') {
+        ack?.({ ok: true, roomCode: room.code, format: 'json', content: JSON.stringify(rows, null, 2) });
+        return;
+      }
+      ack?.({ ok: true, roomCode: room.code, format: 'csv', content: toCsv(rows) });
     }));
     socket.on('teacher:revealGuesses', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); revealGuesses(room); emitRoleStates(io, room); }));
     socket.on('teacher:revealSecret', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); revealSecret(room); emitRoleStates(io, room); }));

@@ -40,6 +40,15 @@ function call(socket: Socket, event: string, payload: object) {
   });
 }
 
+function callWithAck<T>(socket: Socket, event: string, payload: object) {
+  return new Promise<T>((resolve, reject) => {
+    socket.emit(event, payload, (ack: { ok: boolean; error?: string } & T) => {
+      if (ack?.ok) resolve(ack);
+      else reject(new Error(ack?.error || 'Action failed'));
+    });
+  });
+}
+
 function useRoomState(socket: Socket) {
   const [payload, setPayload] = useState<AnyPayload | null>(null);
   useEffect(() => {
@@ -65,26 +74,36 @@ function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; roomCode
   const players = useMemo(() => publicState?.playerOrder?.map((id: string) => publicState.players[id]) ?? [], [publicState]);
 
   const run = (event: string, extras: object = {}) => call(socket, event, { roomCode, hostToken, ...extras }).catch((e) => setError(e.message));
-  const doExport = () => {
-    if (!publicState) return;
-    const rows = players.map((p: any) => `${publicState.code},${p.id},${p.displayName},${p.score}`);
-    const csv = `roomCode,playerId,name,score\n${rows.join('\n')}`;
-    const blob = new Blob([csv], { type: 'text/csv' });
+  const download = (name: string, content: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${publicState.code}-scores.csv`;
+    a.download = name;
     a.click();
     URL.revokeObjectURL(a.href);
+  };
+  const doExport = async (format: 'csv' | 'json') => {
+    try {
+      const ack = await callWithAck<{ roomCode: string; format: 'csv'|'json'; content: string }>(socket, 'teacher:export', { roomCode, hostToken, format });
+      download(`${ack.roomCode}-export.${ack.format}`, ack.content, ack.format === 'csv' ? 'text/csv' : 'application/json');
+    } catch (e) {
+      setError((e as Error).message);
+    }
   };
 
   return <main><h1>Teacher Dashboard · {roomCode}</h1><p>{error}</p>
     <button onClick={() => run('teacher:startRound')}>Start Round</button>
+    <button onClick={() => run('teacher:startPrep')}>Start Prep</button>
     <button onClick={() => run('teacher:lockPrep')}>Lock Prep</button>
+    <button onClick={() => run('teacher:spinSpeaker')}>Spin Speaker Wheel</button>
     <button onClick={() => run('teacher:revealGuesses')}>Reveal Guesses</button>
     <button onClick={() => run('teacher:enterScoring')}>Enter Scoring</button>
     <button onClick={() => run('teacher:revealSecret')}>Reveal Secret</button>
     <button onClick={() => run('teacher:nextSpeaker')}>Next Speaker</button>
-    <button onClick={doExport}>Export Scores</button>
+    <button onClick={() => run('teacher:endRound')}>End Round</button>
+    <button onClick={() => doExport('csv')}>Export CSV</button>
+    <button onClick={() => doExport('json')}>Export JSON</button>
+    <button onClick={() => run('teacher:resetGame')}>Reset Game</button>
     <button onClick={() => window.location.reload()}>Reset Local View</button>
 
     <h2>Speaker / Timer Controls</h2>
@@ -99,6 +118,7 @@ function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; roomCode
       const p = publicState.players[id];
       return <button key={id} onClick={() => run('teacher:selectFollowUpRequester', { playerId: id })}>Select {p?.displayName}</button>;
     })}
+    <button onClick={() => run('teacher:spinFollowUpWheel')}>Spin Follow-up Wheel</button>
     <button onClick={() => run('teacher:awardFollowUpPoint')}>Award +1 Follow-up</button>
 
     <h2>Scoring</h2>
