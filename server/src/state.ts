@@ -75,6 +75,7 @@ export interface RoomState {
   phase: RoomPhase;
   locked: boolean;
   createdAtEpochMs: number;
+  lastActivityEpochMs: number;
   players: Record<string, PlayerState>;
   playerOrder: string[];
   activeRound: RoundState | null;
