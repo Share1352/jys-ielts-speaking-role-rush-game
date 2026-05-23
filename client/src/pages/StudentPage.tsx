@@ -57,20 +57,20 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
     return call(socket, event, { roomCode, playerId: selfId, ...extras }).catch((e: Error) => setError(e.message));
   };
 
-  return <main style={{ maxWidth: 900, margin: '0 auto', padding: 20, fontFamily: 'system-ui, sans-serif', lineHeight: 1.45 }}>
+  return <main className='app-shell stack-md'>
     <h1>Join Room {roomCode}</h1>
     {!payload && <div style={{ display: 'flex', gap: 8, maxWidth: 420 }}>
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' style={{ flex: 1 }} />
-      <button onClick={join}>Join</button>
+      <input className='input' value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' />
+      <button className='btn btn--primary' onClick={join}>Join</button>
     </div>}
-    {error && <p style={{ color: '#b00020' }}><strong>Error:</strong> {error}</p>}
+    {error && <p style={{ color: 'var(--color-danger)' }}><strong>Error:</strong> {error}</p>}
 
     <p><strong>Phase:</strong> {round?.phase ?? 'lobby'}</p>
     <p><strong>Topic:</strong> {round?.topicTitle ?? 'Waiting for round'}</p>
     <p><strong>Situation:</strong> {round?.topicPrompt ?? 'The teacher has not started a round yet.'}</p>
     <TimersPanel prepSec={round?.prepTimer?.remainingSec} speakerSec={round?.speakerTimer?.remainingSec} speakingRunning={round?.speakerTimer?.running} />
 
-    <section style={{ marginTop: 20, padding: 12, border: '1px solid #ddd', borderRadius: 8 }}>
+    <section className='card stack-sm'>
       <h2>My secret cards</h2>
       {roleCard ? <div>
         <h3>Role: {roleCard.title}</h3>
@@ -82,16 +82,16 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
         <p><strong>Success:</strong> {chaosCard.successCriteria}</p>
         <p><strong>Useful phrases:</strong> {chaosCard.examplePhrases.join(' / ')}</p>
       </div> : <p>Chaos card: wait for the teacher to start the round.</p>}
-      <button disabled={!canReroll || payload?.selfPrivateState?.rerolledRole || roleOptions.length === 0} onClick={() => run('student:rerollRole', { roleId: randomFrom(roleOptions) })}>Reroll Role (-1)</button>
-      <button disabled={!canReroll || payload?.selfPrivateState?.rerolledChaos || chaosOptions.length === 0} onClick={() => run('student:rerollChaos', { chaosCardId: randomFrom(chaosOptions) })} style={{ marginLeft: 8 }}>Reroll Chaos (-1)</button>
+      <button className='btn' disabled={!canReroll || payload?.selfPrivateState?.rerolledRole || roleOptions.length === 0} onClick={() => run('student:rerollRole', { roleId: randomFrom(roleOptions) })}>Reroll Role (-1)</button>
+      <button className='btn' disabled={!canReroll || payload?.selfPrivateState?.rerolledChaos || chaosOptions.length === 0} onClick={() => run('student:rerollChaos', { chaosCardId: randomFrom(chaosOptions) })} >Reroll Chaos (-1)</button>
     </section>
 
-    <section style={{ marginTop: 20, padding: 12, border: '1px solid #ddd', borderRadius: 8 }}>
+    <section className='card stack-sm'>
       <h2>Guess the speaker</h2>
       {!canGuess && <p>Guessing opens when the teacher starts the speaker timer. The current speaker cannot guess.</p>}
       <GuessPanel canGuess={canGuess} guessRole={guessRole} guessChaos={guessChaos} roleOptions={roleOptions} chaosOptions={chaosOptions} onRole={setGuessRole} onChaos={setGuessChaos} onSubmit={() => run('student:submitGuess', { guessedRoleId: guessRole, guessedChaosCardId: guessChaos })} />
     </section>
 
-    <p style={{ marginTop: 20 }}><strong>Round status:</strong> {revealMessage(round)}</p>
+    <p><strong>Round status:</strong> {revealMessage(round)}</p>
   </main>;
 }

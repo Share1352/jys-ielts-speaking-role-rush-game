@@ -4,6 +4,9 @@ import { useSocket } from './lib/socket.js';
 import { TeacherPage } from './pages/TeacherPage.js';
 import { StudentPage } from './pages/StudentPage.js';
 import { ViewerPage } from './pages/ViewerPage.js';
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/components.css';
 
 function randomCode() {
   return Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -29,7 +32,7 @@ function LandingPage() {
   }, [roomCode, hostToken]);
 
   return (
-    <main style={{ maxWidth: 900, margin: '0 auto', padding: 20, fontFamily: 'system-ui, sans-serif', lineHeight: 1.5 }}>
+    <main className='app-shell stack-md'>
       <h1>JYS IELTS Speaking Role Rush</h1>
       <p>Host setup page for teachers. Generate one room, share the student and viewer links, then open the teacher link to run the full game.</p>
 
@@ -37,11 +40,11 @@ function LandingPage() {
         <h2>1) Prepare room details</h2>
         <label>
           Room code
-          <input value={roomCode} onChange={(e) => setRoomCode(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, marginBottom: 12 }} />
+          <input value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className='input' />
         </label>
         <label>
           Host token (keep private)
-          <input value={hostToken} onChange={(e) => setHostToken(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, marginBottom: 12 }} />
+          <input value={hostToken} onChange={(e) => setHostToken(e.target.value)} className='input' />
         </label>
       </section>
 
