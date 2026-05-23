@@ -28,9 +28,6 @@ import { sanitizeGuessInput, sanitizeName, sanitizeRoomCode } from './sanitize.j
 
 const rooms = new Map<string, RoomState>();
 const INACTIVITY_TTL_MS = 6 * 60 * 60 * 1000;
-
-const ROLE_POOL = TOPIC_CATEGORIES.flatMap((topic) => topic.roleCards.map((role) => role.id));
-const TOPIC_PROMPTS = TOPIC_CATEGORIES.map((topic) => topic.publicSituation);
 const CHAOS_POOL = CHAOS_CARDS.map((card) => card.id);
 
 function shuffle<T>(items: T[]): T[] {
@@ -51,8 +48,9 @@ function pickAssignments(playerIds: string[], pool: string[]): Record<string, st
   return assignments;
 }
 
-function ensurePromptsCompliant(prompts: string[]): void {
-  for (const prompt of prompts) {
+function ensurePromptsCompliant(): void {
+  for (const topic of TOPIC_CATEGORIES) {
+    const prompt = topic.publicSituation;
     if (prompt.includes('?')) throw new Error('Public prompts must not include question marks');
     if (/\bdo you think\b|\bshould\b/i.test(prompt)) {
       throw new Error('Public prompts must avoid IELTS-question phrasing');
@@ -60,7 +58,7 @@ function ensurePromptsCompliant(prompts: string[]): void {
   }
 }
 
-ensurePromptsCompliant(TOPIC_PROMPTS);
+ensurePromptsCompliant();
 
 function getRoomOrThrow(roomCode: string): RoomState {
   const room = rooms.get(sanitizeRoomCode(roomCode));
@@ -144,9 +142,7 @@ export function registerSocketHandlers(io: Server): void {
         room.players[id] = { id, displayName: cleanedName || fallbackName, seat, connected: true, waitingForNextRound: room.phase !== 'lobby', removed: false, score: 0 };
         room.playerOrder.push(id);
       } else {
-        if (room.players[id].waitingForNextRound && room.phase === 'lobby') {
-          room.players[id].waitingForNextRound = false;
-        }
+        if (room.players[id].waitingForNextRound && room.phase === 'lobby') room.players[id].waitingForNextRound = false;
         if (cleanedName) room.players[id].displayName = cleanedName;
         room.players[id].connected = true;
       }
@@ -168,11 +164,14 @@ export function registerSocketHandlers(io: Server): void {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken);
       touchRoom(room);
       const eligible = room.playerOrder.filter((id) => !room.players[id].removed && !room.players[id].waitingForNextRound);
-      const roleByPlayer = pickAssignments(eligible, ROLE_POOL);
+      const topic = TOPIC_CATEGORIES[Math.floor(Math.random() * TOPIC_CATEGORIES.length)];
+      const rolePool = topic.roleCards.map((role) => role.id);
+      const roleByPlayer = pickAssignments(eligible, rolePool);
       const chaosByPlayer = pickAssignments(eligible, CHAOS_POOL);
-      startRound(room, TOPIC_PROMPTS[Math.floor(Math.random() * TOPIC_PROMPTS.length)], roleByPlayer, chaosByPlayer);
+      startRound(room, topic, CHAOS_POOL, roleByPlayer, chaosByPlayer);
       emitRoleStates(io, room);
     }));
+
     socket.on('teacher:startPrep', ({ roomCode, hostToken }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); emitRoleStates(io, room);
     }));
@@ -187,11 +186,12 @@ export function registerSocketHandlers(io: Server): void {
       socket.emit('room:state', buildStudentPayload(room, playerId));
       emitRoleStates(io, room);
     }));
+
     socket.on('student:rerollRole', ({ roomCode, playerId, roleId }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); applyReroll(room, playerId, 'role', roleId); emitRoleStates(io, room);
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); touchRoom(room); applyReroll(room, playerId, 'role', roleId); emitRoleStates(io, room);
     }));
     socket.on('student:rerollChaos', ({ roomCode, playerId, chaosCardId }, ack) => withAck(ack, () => {
-      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); applyReroll(room, playerId, 'chaos', chaosCardId); emitRoleStates(io, room);
+      const room = getRoomOrThrow(roomCode); requireStudent(room, playerId); touchRoom(room); applyReroll(room, playerId, 'chaos', chaosCardId); emitRoleStates(io, room);
     }));
     socket.on('student:submitGuess', ({ roomCode, playerId, guessedRoleId, guessedChaosCardId }, ack) => withAck(ack, () => {
       const room = getRoomOrThrow(roomCode); requireStudent(room, playerId);
