@@ -55,7 +55,11 @@ export interface TimerState {
 export interface RoundState {
   roundNumber: number;
   phase: RoomPhase;
+  topicId: string;
+  topicTitle: string;
   topicPrompt: string;
+  availableRoleIds: string[];
+  availableChaosCardIds: string[];
   playerRound: Record<string, PlayerRoundState>;
   speakersRemaining: string[];
   currentSpeakerId: string | null;
