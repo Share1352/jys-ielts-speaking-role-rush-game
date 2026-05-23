@@ -35,7 +35,13 @@ export function transitionPhase(room: RoomState, next: RoomPhase): void {
   }
 }
 
-export function startRound(room: RoomState, topicPrompt: string, roleByPlayer: Record<string, string>, chaosByPlayer: Record<string, string>): RoundState {
+export function startRound(
+  room: RoomState,
+  topic: { id: string; title: string; publicSituation: string; roleCards: Array<{ id: string }> },
+  chaosCardIds: string[],
+  roleByPlayer: Record<string, string>,
+  chaosByPlayer: Record<string, string>
+): RoundState {
   transitionPhase(room, 'round_setup');
   const playerRound: Record<string, PlayerRoundState> = {};
   const eligible = room.playerOrder.filter((id) => room.players[id] && !room.players[id].removed && !room.players[id].waitingForNextRound);
@@ -44,7 +50,13 @@ export function startRound(room: RoomState, topicPrompt: string, roleByPlayer: R
   }
   const round: RoundState = {
     roundNumber: room.roundHistory.length + 1,
-    phase: 'round_setup', topicPrompt, playerRound,
+    phase: 'round_setup',
+    topicId: topic.id,
+    topicTitle: topic.title,
+    topicPrompt: topic.publicSituation,
+    availableRoleIds: topic.roleCards.map((role) => role.id),
+    availableChaosCardIds: [...chaosCardIds],
+    playerRound,
     speakersRemaining: [...eligible], currentSpeakerId: null,
     prepTimer: createTimer('prep', PREP_DURATION), speakerTimer: createTimer('speaker', SPEAKER_DURATION), followUpTimer: createTimer('follow_up', FOLLOW_UP_DURATION),
     guesses: {}, revealGuesses: false, revealSecret: false,
@@ -62,17 +74,18 @@ export function applyReroll(room: RoomState, playerId: string, type: 'role'|'cha
   const p = round.playerRound[playerId];
   if (!p) throw new Error('Player not in current round');
   if (type === 'role') {
+    if (!round.availableRoleIds.includes(newValue)) throw new Error('Role is not available in this round');
     if (p.rerolledRole) throw new Error('Role reroll already used');
     if (hasAlternativeUniqueValue(round, playerId, 'role') && Object.values(round.playerRound).some((other) => other !== p && other.roleId === newValue)) throw new Error('Role must be unique when possible');
     p.roleId = newValue; p.rerolledRole = true; p.rerollRolePenalty = -1;
   } else {
+    if (!round.availableChaosCardIds.includes(newValue)) throw new Error('Chaos card is not available in this round');
     if (p.rerolledChaos) throw new Error('Chaos reroll already used');
     if (hasAlternativeUniqueValue(round, playerId, 'chaos') && Object.values(round.playerRound).some((other) => other !== p && other.chaosCardId === newValue)) throw new Error('Chaos card must be unique when possible');
     p.chaosCardId = newValue; p.rerolledChaos = true; p.rerollChaosPenalty = -1;
   }
   room.players[playerId].score += -1;
 }
-
 
 function hasAlternativeUniqueValue(round: RoundState, playerId: string, type: 'role'|'chaos'): boolean {
   const values = Object.entries(round.playerRound)
@@ -98,6 +111,8 @@ export function submitGuess(room: RoomState, guesserId: string, guessedRoleId: s
   const round = mustRound(room);
   if (room.phase !== 'speaking' || !round.speakerTimer.running) throw new Error('Guessing is locked');
   if (!round.currentSpeakerId || guesserId === round.currentSpeakerId) throw new Error('Current speaker cannot guess');
+  if (!round.availableRoleIds.includes(guessedRoleId)) throw new Error('Role guess is not available in this round');
+  if (!round.availableChaosCardIds.includes(guessedChaosCardId)) throw new Error('Chaos guess is not available in this round');
   const key = `${guesserId}:${round.currentSpeakerId}`;
   const now = Date.now();
   const prior = round.guesses[key];
@@ -115,9 +130,8 @@ export function requestFollowUp(room: RoomState, requesterId: string): void {
 }
 
 export function finishSpeaking(room: RoomState): void {
-  const round = mustRound(room);
   transitionPhase(room, 'speaker_finished');
-  round.followUp.locked = true;
+  mustRound(room).followUp.locked = true;
 }
 
 export function selectFollowUpRequester(room: RoomState, playerId: string): void {
