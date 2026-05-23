@@ -23,7 +23,11 @@ export interface PublicGuessView {
 export interface PublicRoundView {
   roundNumber: number;
   phase: RoundState['phase'];
+  topicId: string;
+  topicTitle: string;
   topicPrompt: string;
+  availableRoleIds: string[];
+  availableChaosCardIds: string[];
   speakersRemaining: string[];
   currentSpeakerId: string | null;
   prepTimer: RoundState['prepTimer'];
@@ -134,7 +138,11 @@ function buildPublicRoundView(room: RoomState): PublicRoundView | null {
   return {
     roundNumber: round.roundNumber,
     phase: round.phase,
+    topicId: round.topicId,
+    topicTitle: round.topicTitle,
     topicPrompt: round.topicPrompt,
+    availableRoleIds: [...round.availableRoleIds],
+    availableChaosCardIds: [...round.availableChaosCardIds],
     speakersRemaining: [...round.speakersRemaining],
     currentSpeakerId: round.currentSpeakerId,
     prepTimer: round.prepTimer,
