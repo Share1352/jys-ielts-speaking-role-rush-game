@@ -1,5 +1,5 @@
 export function HiddenAssignmentTable({ round, players }: { round: any; players: any[] }) {
-  return <table><thead><tr><th>Student</th><th>Role</th><th>Chaos</th><th>Rerolls</th></tr></thead><tbody>
+  return <table className='table'><thead><tr><th>Student</th><th>Role</th><th>Chaos</th><th>Rerolls</th></tr></thead><tbody>
     {players.map((p) => {
       const assignment = round?.hiddenAssignmentsByPlayerId?.[p.id];
       const reroll = round?.rerollsByPlayerId?.[p.id];

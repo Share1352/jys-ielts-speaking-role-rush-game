@@ -13,7 +13,7 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
   const players = publicState?.playerOrder?.map((id: string) => publicState.players[id]) ?? [];
   const revealStage = !round?.revealGuesses ? 'Before reveal' : !round?.revealSecret ? 'Guesses revealed' : 'Secret revealed';
 
-  return <main><h1>Viewer · {roomCode}</h1>
+  return <main className='app-shell stack-md'><h1>Viewer · {roomCode}</h1>
     <p>Phase: {round?.phase ?? publicState?.phase}</p><p>Prompt: {round?.topicPrompt ?? '-'}</p><p>Reveal stage: {revealStage}</p>
     <WheelsPanel title='Speaker Selection Animation' spinning={Boolean(round?.speakerWheelSpinning)} items={players.map((p: any) => p.displayName)} />
     <WheelsPanel title='Follow-up Selection Animation' spinning={Boolean(round?.followUp?.wheelSpinning)} items={(round?.followUp?.requesterIds ?? []).map((id: string) => publicState.players[id]?.displayName)} />
