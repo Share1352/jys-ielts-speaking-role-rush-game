@@ -19,6 +19,7 @@ function randomToken() {
 function LandingPage() {
   const [roomCode, setRoomCode] = useState(randomCode());
   const [hostToken, setHostToken] = useState(randomToken());
+  const [copiedKey, setCopiedKey] = useState<null | 'teacher' | 'student' | 'viewer'>(null);
 
   const links = useMemo(() => {
     const cleanRoom = roomCode.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase();
@@ -31,38 +32,79 @@ function LandingPage() {
     };
   }, [roomCode, hostToken]);
 
+  const copyLink = async (key: 'teacher' | 'student' | 'viewer', value: string) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${value}`);
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1400);
+    } catch {
+      setCopiedKey(null);
+    }
+  };
+
   return (
     <main className='app-shell stack-md'>
-      <h1>JYS IELTS Speaking Role Rush</h1>
-      <p>Host setup page for teachers. Generate one room, share the student and viewer links, then open the teacher link to run the full game.</p>
+      <header className='card landing-header stack-sm'>
+        <h1>JYS IELTS Speaking Role Rush</h1>
+        <p>Set up one room, protect the host link, and share class links for synchronized speaking gameplay.</p>
+      </header>
 
-      <section>
-        <h2>1) Prepare room details</h2>
-        <label>
-          Room code
-          <input value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className='input' />
-        </label>
-        <label>
-          Host token (keep private)
-          <input value={hostToken} onChange={(e) => setHostToken(e.target.value)} className='input' />
-        </label>
+      <section className='landing-layout'>
+        <article className='card stack-md'>
+          <div>
+            <h2>Room setup</h2>
+            <p className='microcopy'>Use short room codes and keep the host token private to control the teacher dashboard.</p>
+          </div>
+          <label>
+            Room code
+            <input value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className='input' />
+          </label>
+          <label>
+            Host token (keep private)
+            <input value={hostToken} onChange={(e) => setHostToken(e.target.value)} className='input' />
+          </label>
+          <div className='status-pill'>Active room code: {links.roomCode || 'EMPTY'}</div>
+        </article>
+
+        <article className='card stack-md'>
+          <div>
+            <h2>Share links</h2>
+            <p className='microcopy'>Open host privately. Share student + viewer links with class participants.</p>
+          </div>
+
+          <div className='link-card link-card--private stack-sm'>
+            <strong>Private host link</strong>
+            <a href={links.teacher}>{links.teacher}</a>
+            <button className='btn btn--ghost' onClick={() => copyLink('teacher', links.teacher)} type='button'>
+              {copiedKey === 'teacher' ? 'Copied' : 'Copy host link'}
+            </button>
+          </div>
+
+          <div className='link-card link-card--share stack-sm'>
+            <strong>Share with class: student link</strong>
+            <a href={links.student}>{links.student}</a>
+            <button className='btn btn--ghost' onClick={() => copyLink('student', links.student)} type='button'>
+              {copiedKey === 'student' ? 'Copied' : 'Copy student link'}
+            </button>
+          </div>
+
+          <div className='link-card link-card--share stack-sm'>
+            <strong>Share with class: viewer link</strong>
+            <a href={links.viewer}>{links.viewer}</a>
+            <button className='btn btn--ghost' onClick={() => copyLink('viewer', links.viewer)} type='button'>
+              {copiedKey === 'viewer' ? 'Copied' : 'Copy viewer link'}
+            </button>
+          </div>
+        </article>
       </section>
 
-      <section>
-        <h2>2) Open and share links</h2>
-        <ul>
-          <li><strong>Teacher (private):</strong> <a href={links.teacher}>{links.teacher}</a></li>
-          <li><strong>Student (share):</strong> <a href={links.student}>{links.student}</a></li>
-          <li><strong>Viewer (screen share):</strong> <a href={links.viewer}>{links.viewer}</a></li>
-        </ul>
-      </section>
-
-      <section>
-        <h2>3) Host flow checklist</h2>
+      <section className='panel stack-sm'>
+        <h2>Host checklist</h2>
+        <p className='microcopy'>Use this quick flow before each game round.</p>
         <ol>
-          <li>Students join with names from the student link.</li>
-          <li>Open the viewer link on your shared screen.</li>
-          <li>Start round, run prep, speaker turns, guessing, reveal, and scoring from the teacher dashboard.</li>
+          <li>Share the student link for join names.</li>
+          <li>Open viewer link on your shared meeting screen.</li>
+          <li>Open private host link and run prep, speaker turns, reveal, and scoring.</li>
         </ol>
       </section>
     </main>
