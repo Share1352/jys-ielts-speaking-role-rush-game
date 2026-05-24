@@ -32,30 +32,56 @@ export function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; r
   };
 
   const revealStage = !round?.revealGuesses ? 'Before reveal' : !round?.revealSecret ? 'Guesses revealed' : 'Secret revealed';
+  const phaseBadgeClass = `phase-badge phase-badge--${phase}`;
+  const speakingTimerState = round?.speakerTimer?.running ? 'Running' : 'Stopped';
 
   return <main className='app-shell stack-md'>
     <header className='panel app-header'>
       <div className='app-header__top'>
-        <h1>Teacher Dashboard · {roomCode}</h1>
+        <h1>Top Game Header · {roomCode}</h1>
         <div className='app-header__meta'>
           <span className='meta-chip meta-chip--success'>Connected</span>
-          <span className='meta-chip meta-chip--info'>Phase: {phase}</span>
+          <span className={phaseBadgeClass}>Phase: {phase}</span>
         </div>
       </div>
       <p className='info-strip'><strong>Players:</strong> {players.length ? players.map((p: any) => p.displayName).join(', ') : <span className='empty-state'>No students yet</span>}</p>
       {error && <p className='state state--error'><strong>Error:</strong> {error}</p>}
     </header>
 
+    <section className='panel'>
+      <h2>Live Round Snapshot</h2>
+      <div className='dashboard-grid'>
+        <p><strong>Current speaker:</strong> {currentSpeaker?.displayName ?? <span className='empty-state'>Not selected yet</span>}</p>
+        <p><strong>Follow-up selection:</strong> {selectedFollowUp?.displayName ?? <span className='empty-state'>Not selected</span>}</p>
+        <p><strong>Reveal stage:</strong> <span className='badge'>{revealStage}</span></p>
+        <p><strong>Speaker timer:</strong> <span className={round?.speakerTimer?.running ? 'status-pill phase-status phase-status--speaking' : 'status-pill phase-status phase-status--idle'}>{speakingTimerState}</span></p>
+      </div>
+    </section>
+
     <section className='panel stack-sm'>
-      <h2>Primary Controls</h2>
-      {(phase === 'lobby' || phase === 'round_complete') && <button className='btn' disabled={players.length === 0} onClick={() => run('teacher:startRound')}>Start Round</button>}
-      {phase === 'prep' && <button className='btn' onClick={() => run('teacher:lockPrep')}>Finish Prep</button>}
-      {(phase === 'ready_to_speak' || phase === 'speaker_selection') && <button className='btn btn--primary' onClick={() => run('teacher:spinSpeaker')}>Spin Speaker Wheel</button>}
+      <h2>Primary Phase Actions</h2>
+      {(phase === 'lobby' || phase === 'round_complete') && <div className='stack-sm'>
+        <div className='action-group action-group--primary'>
+          <button className='btn btn--primary' disabled={players.length === 0} onClick={() => run('teacher:startRound')}>Start Round</button>
+        </div>
+      </div>}
+      {phase === 'prep' && <div className='stack-sm'>
+        <div className='action-group action-group--primary'>
+          <button className='btn btn--primary' onClick={() => run('teacher:lockPrep')}>Finish Prep</button>
+        </div>
+      </div>}
+      {(phase === 'ready_to_speak' || phase === 'speaker_selection') && <div className='stack-sm'>
+        <div className='action-group action-group--primary'>
+          <button className='btn btn--primary' onClick={() => run('teacher:spinSpeaker')}>Spin Speaker Wheel</button>
+        </div>
+      </div>}
       {phase === 'speaking' && <>
         <div className='stack-sm'>
-          <p className='microcopy'>Live speaking controls</p>
+          <p className='microcopy'>Primary CTA</p>
           <div className='action-group action-group--primary'>
             <button className='btn btn--primary' disabled={Boolean(round?.speakerTimer?.running)} onClick={() => run('teacher:startSpeakerTimer')}>Start Speaking Timer</button>
+          </div>
+          <div className='action-group action-group--secondary'>
             <button className='btn' disabled={!round?.speakerTimer?.running} onClick={() => run('teacher:pauseTimer')}>Pause Timer</button>
             <button className='btn' onClick={() => run('teacher:stopTimer')}>Stop Speaking</button>
           </div>
@@ -63,43 +89,44 @@ export function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; r
       </>}
       {phase === 'speaker_finished' && <>
         <div className='stack-sm'>
-          <p className='microcopy'>Post-speaking tasks</p>
+          <p className='microcopy'>Primary CTA</p>
           <div className='action-group action-group--primary'>
+            <button className='btn btn--primary' onClick={() => run('teacher:revealGuesses')}>Reveal Guesses</button>
+          </div>
+          <div className='action-group action-group--secondary'>
             <button className='btn' disabled={(round?.followUp?.requesterIds ?? []).length === 0} onClick={() => run('teacher:spinFollowUpWheel')}>Spin Follow-up Wheel</button>
             <button className='btn' disabled={!round?.followUp?.selectedRequesterId || Boolean(round?.followUp?.awardedRequesterId)} onClick={() => run('teacher:awardFollowUpPoint')}>Award Follow-up Point</button>
-            <button className='btn btn--primary' onClick={() => run('teacher:revealGuesses')}>Reveal Guesses</button>
           </div>
         </div>
       </>}
-      {phase === 'guesses_revealed' && <button className='btn btn--primary' onClick={() => run('teacher:enterScoring')}>Enter Scoring</button>}
-      {phase === 'scoring' && <button className='btn btn--primary' onClick={() => run('teacher:revealSecret')}>Reveal Secret</button>}
-      {phase === 'secret_revealed' && <button className='btn btn--primary' onClick={() => run('teacher:nextSpeaker')}>Next Speaker / Finish Round</button>}
+      {phase === 'guesses_revealed' && <div className='action-group action-group--primary'><button className='btn btn--primary' onClick={() => run('teacher:enterScoring')}>Enter Scoring</button></div>}
+      {phase === 'scoring' && <div className='action-group action-group--primary'><button className='btn btn--primary' onClick={() => run('teacher:revealSecret')}>Reveal Secret</button></div>}
+      {phase === 'secret_revealed' && <div className='action-group action-group--primary'><button className='btn btn--primary' onClick={() => run('teacher:nextSpeaker')}>Next Speaker / Finish Round</button></div>}
+    </section>
+
+    <section className='panel stack-sm'>
+      <h2>Secondary/Admin Actions</h2>
       <div className='action-group action-group--destructive'>
         <button className='btn btn--danger' onClick={() => run('teacher:resetGame')}>Reset Game</button>
       </div>
     </section>
 
-    <section className='panel'>
-      <div className='app-header__top'>
-        <p><strong>Current speaker:</strong> {currentSpeaker?.displayName ?? <span className='empty-state'>Not selected yet</span>}</p>
-        <p><strong>Follow-up selection:</strong> {selectedFollowUp?.displayName ?? <span className='empty-state'>Not selected</span>}</p>
-        <p><strong>Reveal stage:</strong> <span className='badge'>{revealStage}</span></p>
-      </div>
-    </section>
-
     <section className='dashboard-grid'>
+      <h2>Analytics Blocks</h2>
       <div className='stack-md'>
+        <h3>Wheels</h3>
         <WheelsPanel title='Speaker Selection' spinning={Boolean(round?.speakerWheelSpinning)} items={players.map((p: any) => p.displayName)} />
         <WheelsPanel title='Follow-up Selection' spinning={Boolean(round?.followUp?.wheelSpinning)} items={(round?.followUp?.requesterIds ?? []).map((id: string) => publicState.players[id]?.displayName)} />
       </div>
       <div className='stack-md'>
         <TimersPanel prepSec={round?.prepTimer?.remainingSec} speakerSec={round?.speakerTimer?.remainingSec} speakingRunning={round?.speakerTimer?.running} />
+        <h3>Hidden Assignments</h3>
         <HiddenAssignmentTable round={round} players={players} />
       </div>
     </section>
 
     <section className='panel'>
-      <h2>Scoreboard</h2>
+      <h2>Analytics Blocks · Scoreboard</h2>
       <Scoreboard players={players} />
     </section>
 

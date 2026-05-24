@@ -21,6 +21,14 @@
 .meta-chip--success { border-color: color-mix(in srgb, var(--accent-success), white 30%); background: color-mix(in srgb, var(--accent-success), transparent 85%); }
 .meta-chip--warn { border-color: color-mix(in srgb, var(--accent-warn), white 25%); background: color-mix(in srgb, var(--accent-warn), transparent 86%); }
 .meta-chip--info { border-color: color-mix(in srgb, var(--accent-info), white 22%); background: color-mix(in srgb, var(--accent-info), transparent 86%); }
+.phase-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: var(--space-xxs) var(--space-sm); border: 1px solid var(--border-subtle); font-size: var(--font-size-sm); text-transform: capitalize; }
+.phase-badge--lobby, .phase-badge--round_complete { border-color: color-mix(in srgb, var(--accent-info), white 20%); background: color-mix(in srgb, var(--accent-info), transparent 85%); }
+.phase-badge--prep, .phase-badge--ready_to_speak, .phase-badge--speaker_selection { border-color: color-mix(in srgb, var(--accent-warn), white 25%); background: color-mix(in srgb, var(--accent-warn), transparent 85%); }
+.phase-badge--speaking { border-color: color-mix(in srgb, var(--accent-success), white 28%); background: color-mix(in srgb, var(--accent-success), transparent 84%); }
+.phase-badge--speaker_finished, .phase-badge--guesses_revealed, .phase-badge--scoring, .phase-badge--secret_revealed { border-color: color-mix(in srgb, var(--accent-primary), white 20%); background: color-mix(in srgb, var(--accent-primary), transparent 85%); }
+
+.phase-status--speaking { border-color: color-mix(in srgb, var(--accent-success), white 25%); background: color-mix(in srgb, var(--accent-success), transparent 84%); }
+.phase-status--idle { border-color: color-mix(in srgb, var(--accent-warn), white 25%); background: color-mix(in srgb, var(--accent-warn), transparent 86%); }
 
 .info-strip { padding: var(--space-sm); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); background: var(--surface-3); color: var(--text-muted); }
 
