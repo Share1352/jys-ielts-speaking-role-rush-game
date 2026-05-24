@@ -44,6 +44,15 @@
 .state--error { border-color: color-mix(in srgb, var(--accent-danger), white 25%); background: color-mix(in srgb, var(--accent-danger), transparent 85%); color: #ffd5d5; }
 .state--success { border-color: color-mix(in srgb, var(--accent-success), white 25%); background: color-mix(in srgb, var(--accent-success), transparent 86%); color: #d5ffe9; }
 .empty-state { color: var(--text-subtle); }
+.game-card__body { display: grid; gap: var(--space-sm); }
+.game-card__body--stack > * + * { margin-top: var(--space-sm); }
+.game-card__footer-text { margin: 0; color: var(--text-subtle); font-size: var(--font-size-sm); border-top: 1px solid var(--border-subtle); padding-top: var(--space-sm); }
+.game-card__empty--body { margin: 0; padding: var(--space-sm) var(--space-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-3); }
+.game-card__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-sm); }
+.game-card__list-item { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-3); padding: var(--space-sm) var(--space-md); }
+.game-card__table { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); overflow: hidden; }
+.game-card__table th,.game-card__table td { padding: var(--space-sm) var(--space-md); }
+.game-card__table th { background: color-mix(in srgb, var(--surface-3), transparent 10%); }
 .alert { padding: var(--space-sm) var(--space-md); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); }
 .alert--error { border-color: color-mix(in srgb, var(--accent-danger), white 25%); background: color-mix(in srgb, var(--accent-danger), transparent 85%); color: #ffd5d5; }
 .alert--info { border-color: color-mix(in srgb, var(--accent-info), white 22%); background: color-mix(in srgb, var(--accent-info), transparent 88%); color: #dce6ff; }

@@ -12,25 +12,28 @@ export function GuessPanel({ canGuess, guessRole, guessChaos, roleOptions, chaos
         </span>
       </div>
 
-      {!canGuess && (
-        <p className='empty-state game-card__empty'>Guessing is locked because the speaker timer is not running or has already stopped.</p>
-      )}
+      <div className='game-card__body game-card__body--stack'>
+        {!canGuess && (
+          <p className='empty-state game-card__empty game-card__empty--body'>Guessing is locked because the speaker timer is not running or has already stopped.</p>
+        )}
 
-      <label className='form-field stack-sm'>
-        <span className='form-field__label'>Speaker role guess</span>
-        <select className='select form-field__control' value={guessRole} onChange={(e) => onRole(e.target.value)} disabled={isDisabled || roleOptions.length === 0}>
-          {roleOptions.map((o) => <option key={o} value={o}>{roleLabel(o)}</option>)}
-        </select>
-      </label>
+        <label className='form-field stack-sm'>
+          <span className='form-field__label'>Speaker role guess</span>
+          <select className='select form-field__control' value={guessRole} onChange={(e) => onRole(e.target.value)} disabled={isDisabled || roleOptions.length === 0}>
+            {roleOptions.map((o) => <option key={o} value={o}>{roleLabel(o)}</option>)}
+          </select>
+        </label>
 
-      <label className='form-field stack-sm'>
-        <span className='form-field__label'>Speaker chaos card guess</span>
-        <select className='select form-field__control' value={guessChaos} onChange={(e) => onChaos(e.target.value)} disabled={isDisabled || chaosOptions.length === 0}>
-          {chaosOptions.map((o) => <option key={o} value={o}>{chaosLabel(o)}</option>)}
-        </select>
-      </label>
+        <label className='form-field stack-sm'>
+          <span className='form-field__label'>Speaker chaos card guess</span>
+          <select className='select form-field__control' value={guessChaos} onChange={(e) => onChaos(e.target.value)} disabled={isDisabled || chaosOptions.length === 0}>
+            {chaosOptions.map((o) => <option key={o} value={o}>{chaosLabel(o)}</option>)}
+          </select>
+        </label>
 
-      <button className='btn btn--primary guess-submit' disabled={isDisabled || !guessRole || !guessChaos} onClick={onSubmit}>Submit / Edit Guess</button>
+        <button className='btn btn--primary guess-submit' disabled={isDisabled || !guessRole || !guessChaos} onClick={onSubmit}>Submit / Edit Guess</button>
+      </div>
+      <p className='game-card__footer-text'>You can edit and resubmit during speaking; all guesses lock when the timer stops.</p>
     </section>
   );
 }
