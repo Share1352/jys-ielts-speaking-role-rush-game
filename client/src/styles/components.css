@@ -65,3 +65,40 @@
   .viewer-header, .viewer-speaker-strip { flex-direction: column; align-items: flex-start; }
   .viewer-phase-wrap, .viewer-timer-block { text-align: left; }
 }
+
+.game-card__header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); flex-wrap: wrap; }
+.game-card__title { margin: 0; font-size: var(--font-size-lg); line-height: 1.3; }
+.game-card__badge { font-weight: 600; }
+.game-card__badge--live { background: rgba(50, 214, 137, 0.15); border-color: rgba(82, 255, 176, 0.55); }
+.game-card__badge--idle,.game-card__badge--locked { background: rgba(255, 184, 76, 0.14); border-color: rgba(255, 214, 132, 0.55); }
+.game-card__empty { margin: 0; }
+
+.scoreboard-list,.wheel-list { list-style: none; margin: 0; padding: 0; }
+.scoreboard-list__item { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); }
+.scoreboard-list__item:last-child { border-bottom: 0; }
+.scoreboard-list__name { margin: 0; font-size: var(--font-size-md); }
+.scoreboard-list__score { min-width: 42px; justify-content: center; }
+
+.timer-block { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); }
+.timer-block--prep { background: rgba(83, 128, 255, 0.12); border-color: rgba(138, 180, 255, 0.45); }
+.timer-block--live { background: rgba(50, 214, 137, 0.12); border-color: rgba(82, 255, 176, 0.5); }
+.timer-block--paused { background: rgba(255, 184, 76, 0.12); border-color: rgba(255, 214, 132, 0.45); }
+.timer-block__label,.timer-block__value { margin: 0; }
+.timer-block__label { color: var(--color-text-subtle); font-size: var(--font-size-sm); }
+.timer-block__value { font-size: var(--font-size-xl); font-weight: 700; line-height: 1.2; margin-top: var(--space-1); }
+
+.wheel-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-2); }
+.wheel-list__item { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--color-bg-soft); }
+
+.form-field { display: block; }
+.form-field__label { display: block; font-size: var(--font-size-sm); color: var(--color-text-subtle); }
+.form-field__control { min-height: 40px; }
+.guess-submit { min-height: 42px; }
+
+.assignment-table { display: block; overflow-x: auto; }
+
+@media (max-width: 720px) {
+  .game-card__title { font-size: var(--font-size-md); }
+  .scoreboard-list__item { align-items: flex-start; }
+  .timer-block__value { font-size: var(--font-size-lg); }
+}
