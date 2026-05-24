@@ -34,16 +34,16 @@ export function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; r
   const revealStage = !round?.revealGuesses ? 'Before reveal' : !round?.revealSecret ? 'Guesses revealed' : 'Secret revealed';
 
   return <main className='app-shell stack-md'>
-    <header className='panel stack-sm'>
-      <div className='row row--spread'>
+    <header className='panel app-header'>
+      <div className='app-header__top'>
         <h1>Teacher Dashboard · {roomCode}</h1>
-        <div className='row'>
-          <span className='status-pill'>Connected</span>
-          <span className='badge'>Phase: {phase}</span>
+        <div className='app-header__meta'>
+          <span className='meta-chip meta-chip--success'>Connected</span>
+          <span className='meta-chip meta-chip--info'>Phase: {phase}</span>
         </div>
       </div>
-      <p><strong>Players:</strong> {players.length ? players.map((p: any) => p.displayName).join(', ') : <span className='empty-state'>No students yet</span>}</p>
-      {error && <p className='compact-alert'><strong>Error:</strong> {error}</p>}
+      <p className='info-strip'><strong>Players:</strong> {players.length ? players.map((p: any) => p.displayName).join(', ') : <span className='empty-state'>No students yet</span>}</p>
+      {error && <p className='state state--error'><strong>Error:</strong> {error}</p>}
     </header>
 
     <section className='panel stack-sm'>
@@ -54,7 +54,7 @@ export function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; r
       {phase === 'speaking' && <>
         <div className='stack-sm'>
           <p className='microcopy'>Live speaking controls</p>
-          <div className='row'>
+          <div className='action-group action-group--primary'>
             <button className='btn btn--primary' disabled={Boolean(round?.speakerTimer?.running)} onClick={() => run('teacher:startSpeakerTimer')}>Start Speaking Timer</button>
             <button className='btn' disabled={!round?.speakerTimer?.running} onClick={() => run('teacher:pauseTimer')}>Pause Timer</button>
             <button className='btn' onClick={() => run('teacher:stopTimer')}>Stop Speaking</button>
@@ -64,7 +64,7 @@ export function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; r
       {phase === 'speaker_finished' && <>
         <div className='stack-sm'>
           <p className='microcopy'>Post-speaking tasks</p>
-          <div className='row'>
+          <div className='action-group action-group--primary'>
             <button className='btn' disabled={(round?.followUp?.requesterIds ?? []).length === 0} onClick={() => run('teacher:spinFollowUpWheel')}>Spin Follow-up Wheel</button>
             <button className='btn' disabled={!round?.followUp?.selectedRequesterId || Boolean(round?.followUp?.awardedRequesterId)} onClick={() => run('teacher:awardFollowUpPoint')}>Award Follow-up Point</button>
             <button className='btn btn--primary' onClick={() => run('teacher:revealGuesses')}>Reveal Guesses</button>
@@ -74,20 +74,20 @@ export function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; r
       {phase === 'guesses_revealed' && <button className='btn btn--primary' onClick={() => run('teacher:enterScoring')}>Enter Scoring</button>}
       {phase === 'scoring' && <button className='btn btn--primary' onClick={() => run('teacher:revealSecret')}>Reveal Secret</button>}
       {phase === 'secret_revealed' && <button className='btn btn--primary' onClick={() => run('teacher:nextSpeaker')}>Next Speaker / Finish Round</button>}
-      <div className='danger-zone'>
+      <div className='action-group action-group--destructive'>
         <button className='btn btn--danger' onClick={() => run('teacher:resetGame')}>Reset Game</button>
       </div>
     </section>
 
     <section className='panel'>
-      <div className='row row--spread'>
+      <div className='app-header__top'>
         <p><strong>Current speaker:</strong> {currentSpeaker?.displayName ?? <span className='empty-state'>Not selected yet</span>}</p>
         <p><strong>Follow-up selection:</strong> {selectedFollowUp?.displayName ?? <span className='empty-state'>Not selected</span>}</p>
         <p><strong>Reveal stage:</strong> <span className='badge'>{revealStage}</span></p>
       </div>
     </section>
 
-    <section className='data-grid'>
+    <section className='dashboard-grid'>
       <div className='stack-md'>
         <WheelsPanel title='Speaker Selection' spinning={Boolean(round?.speakerWheelSpinning)} items={players.map((p: any) => p.displayName)} />
         <WheelsPanel title='Follow-up Selection' spinning={Boolean(round?.followUp?.wheelSpinning)} items={(round?.followUp?.requesterIds ?? []).map((id: string) => publicState.players[id]?.displayName)} />
@@ -108,13 +108,13 @@ export function TeacherPage({ socket, roomCode, hostToken }: { socket: Socket; r
       {(round?.guesses ?? []).length === 0 && <p className='compact-alert compact-alert--soft'>No guesses submitted for this speaker yet.</p>}
       {(round?.guesses ?? []).map((g: any) => <div className='row row--readable' key={`${g.guesserPlayerId}-${g.targetSpeakerId}`}>
         <strong>{publicState.players[g.guesserPlayerId]?.displayName ?? g.guesserPlayerId}</strong>
-        <div className='row'>
+        <div className='action-group action-group--primary'>
           {(['exact', 'partial', 'miss'] as GuessResult[]).map((r) => <button className='btn' key={r} onClick={() => run('teacher:scoreGuess', { guesserId: g.guesserPlayerId, roleResult: r, chaosResult: 'miss' })}>Role {r}</button>)}
         </div>
       </div>)}
       {round?.currentSpeakerId && <div className='stack-sm'>
         <p className='microcopy'>Speaker bonus (+1 each)</p>
-        <div className='row'>
+        <div className='action-group action-group--primary'>
           {bonusCategories.map((b) => <button className='btn' key={b.id} onClick={() => run('teacher:setSpeakerBonus', { speakerId: round.currentSpeakerId, category: b.id })}>{b.label}</button>)}
         </div>
       </div>}

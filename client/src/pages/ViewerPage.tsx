@@ -16,7 +16,7 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
 
   return (
     <main className='app-shell viewer-layout stack-md'>
-      <header className='panel viewer-header'>
+      <header className='panel app-header viewer-header'>
         <div>
           <p className='viewer-label'>Room code</p>
           <h1 className='viewer-room'>{roomCode}</h1>
@@ -57,7 +57,7 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
         </ul>
       </section>
 
-      <section className='data-grid'>
+      <section className='dashboard-grid'>
         <WheelsPanel title='Speaker Selection Animation' spinning={Boolean(round?.speakerWheelSpinning)} items={players.map((p: any) => p.displayName)} />
         <WheelsPanel title='Follow-up Selection Animation' spinning={Boolean(round?.followUp?.wheelSpinning)} items={(round?.followUp?.requesterIds ?? []).map((id: string) => publicState.players[id]?.displayName)} />
       </section>

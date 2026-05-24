@@ -60,20 +60,22 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
   const connectionLabel = socket.connected ? 'Connected' : 'Reconnecting';
 
   return <main className='app-shell stack-md'>
-    <header className='card stack-sm'>
-      <h1>Join Room {roomCode}</h1>
-      <div className='row'>
+    <header className='card app-header'>
+      <div className='app-header__top'>
+        <h1 className='app-header__title'>Join Room {roomCode}</h1>
+        <div className='app-header__meta'>
         <span className='status-pill'><strong>Room:</strong>&nbsp;{roomCode}</span>
         <span className='status-pill'><strong>Phase:</strong>&nbsp;{round?.phase ?? 'lobby'}</span>
         <span className='status-pill'><strong>Status:</strong>&nbsp;{connectionLabel}</span>
+        </div>
       </div>
     </header>
 
-    {!payload && <div style={{ display: 'flex', gap: 8, maxWidth: 420 }}>
+    {!payload && <div className='join-form'>
       <input className='input' value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' />
-      <button className='btn btn--primary' style={{ minHeight: 44, minWidth: 88 }} onClick={join}>Join</button>
+      <button className='btn btn--primary btn--min-touch btn--join' onClick={join}>Join</button>
     </div>}
-    {error && <p style={{ color: 'var(--color-danger)' }}><strong>Error:</strong> {error}</p>}
+    {error && <p className='state state--error'><strong>Error:</strong> {error}</p>}
 
     <section className='card stack-sm'>
       <h2>Public Prompt & Timers</h2>
@@ -83,7 +85,7 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
       <p className='microcopy'><strong>Round status:</strong> {revealMessage(round)}</p>
     </section>
 
-    <section className='card stack-sm' style={{ borderColor: 'rgba(210, 164, 255, 0.55)', background: 'rgba(163, 87, 255, 0.1)' }}>
+    <section className='card stack-sm section-card section-card--secret'>
       <h2>My Secret Cards</h2>
       <p className='microcopy'>Private view only. Hidden from other students and viewer screen until teacher reveal.</p>
       {roleCard ? <div>
@@ -97,8 +99,8 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
         <p><strong>Useful phrases:</strong> {chaosCard.examplePhrases.join(' / ')}</p>
       </div> : <p>Chaos card: wait for the teacher to start the round.</p>}
       <div className='row'>
-        <button className='btn' style={{ minHeight: 44 }} disabled={!canReroll || payload?.selfPrivateState?.rerolledRole || roleOptions.length === 0} onClick={() => run('student:rerollRole', { roleId: randomFrom(roleOptions) })}>Reroll Role (-1)</button>
-        <button className='btn' style={{ minHeight: 44 }} disabled={!canReroll || payload?.selfPrivateState?.rerolledChaos || chaosOptions.length === 0} onClick={() => run('student:rerollChaos', { chaosCardId: randomFrom(chaosOptions) })} >Reroll Chaos (-1)</button>
+        <button className='btn btn--min-touch' disabled={!canReroll || payload?.selfPrivateState?.rerolledRole || roleOptions.length === 0} onClick={() => run('student:rerollRole', { roleId: randomFrom(roleOptions) })}>Reroll Role (-1)</button>
+        <button className='btn btn--min-touch' disabled={!canReroll || payload?.selfPrivateState?.rerolledChaos || chaosOptions.length === 0} onClick={() => run('student:rerollChaos', { chaosCardId: randomFrom(chaosOptions) })} >Reroll Chaos (-1)</button>
       </div>
       <p className='microcopy'>Each reroll can be used once per round, costs 1 point, and is available during prep phase only.</p>
     </section>

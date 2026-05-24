@@ -44,12 +44,12 @@ function LandingPage() {
 
   return (
     <main className='app-shell stack-md'>
-      <header className='card landing-header stack-sm'>
+      <header className='card app-header landing-header'>
         <h1>JYS IELTS Speaking Role Rush</h1>
         <p>Set up one room, protect the host link, and share class links for synchronized speaking gameplay.</p>
       </header>
 
-      <section className='landing-layout'>
+      <section className='dashboard-columns'>
         <article className='card stack-md'>
           <div>
             <h2>Room setup</h2>
