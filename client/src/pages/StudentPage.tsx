@@ -59,8 +59,8 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
 
   const connectionLabel = socket.connected ? 'Connected' : 'Reconnecting';
 
-  return <main className='app-shell stack-md'>
-    <header className='card app-header'>
+  return <main className='app-shell stack-md student-page'>
+    <header className='card app-header student-top-sticky'>
       <div className='app-header__top'>
         <h1 className='app-header__title'>Join Room {roomCode}</h1>
         <div className='app-header__meta'>
@@ -75,7 +75,7 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
       <input className='input' value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' />
       <button className='btn btn--primary btn--min-touch btn--join' onClick={join}>Join</button>
     </div>}
-    {error && <p className='state state--error'><strong>Error:</strong> {error}</p>}
+    {error && <p className='alert alert--error'><strong>Error:</strong> {error}</p>}
 
     <section className='card stack-sm'>
       <h2>Public Prompt & Timers</h2>
@@ -86,7 +86,10 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
     </section>
 
     <section className='card stack-sm section-card section-card--secret'>
-      <h2>My Secret Cards</h2>
+      <div className='row row--spread'>
+        <h2>My Secret Cards</h2>
+        <span className='private-panel-label'>Private</span>
+      </div>
       <p className='microcopy'>Private view only. Hidden from other students and viewer screen until teacher reveal.</p>
       {roleCard ? <div>
         <h3>Role: {roleCard.title}</h3>
@@ -99,18 +102,19 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
         <p><strong>Useful phrases:</strong> {chaosCard.examplePhrases.join(' / ')}</p>
       </div> : <p>Chaos card: wait for the teacher to start the round.</p>}
       <div className='row'>
-        <button className='btn btn--min-touch' disabled={!canReroll || payload?.selfPrivateState?.rerolledRole || roleOptions.length === 0} onClick={() => run('student:rerollRole', { roleId: randomFrom(roleOptions) })}>Reroll Role (-1)</button>
-        <button className='btn btn--min-touch' disabled={!canReroll || payload?.selfPrivateState?.rerolledChaos || chaosOptions.length === 0} onClick={() => run('student:rerollChaos', { chaosCardId: randomFrom(chaosOptions) })} >Reroll Chaos (-1)</button>
+        <button className={`btn btn--min-touch btn--stable ${(!canReroll || payload?.selfPrivateState?.rerolledRole || roleOptions.length === 0) ? 'is-disabled' : ''}`} disabled={!canReroll || payload?.selfPrivateState?.rerolledRole || roleOptions.length === 0} onClick={() => run('student:rerollRole', { roleId: randomFrom(roleOptions) })}>Reroll Role (-1)</button>
+        <button className={`btn btn--min-touch btn--stable ${(!canReroll || payload?.selfPrivateState?.rerolledChaos || chaosOptions.length === 0) ? 'is-disabled' : ''}`} disabled={!canReroll || payload?.selfPrivateState?.rerolledChaos || chaosOptions.length === 0} onClick={() => run('student:rerollChaos', { chaosCardId: randomFrom(chaosOptions) })} >Reroll Chaos (-1)</button>
       </div>
+      {!canReroll && <p className='alert alert--info'>Reroll actions are locked outside the prep phase.</p>}
       <p className='microcopy'>Each reroll can be used once per round, costs 1 point, and is available during prep phase only.</p>
     </section>
 
-    <section className='card stack-sm'>
+    <section className={`card stack-sm ${!canGuess ? 'disabled-surface' : ''}`}>
       <div className='row row--spread'>
         <h2>Guess the Speaker</h2>
         <span className='status-pill'>{canGuess ? 'Unlocked: Speaker timer is running' : 'Locked: Wait for speaker timer'}</span>
       </div>
-      {!canGuess && <p>Guessing opens only while the speaker timer is running. The current speaker cannot guess themselves.</p>}
+      {!canGuess && <p className='alert alert--info'>Guessing opens only while the speaker timer is running. The current speaker cannot guess themselves.</p>}
       <GuessPanel canGuess={canGuess} guessRole={guessRole} guessChaos={guessChaos} roleOptions={roleOptions} chaosOptions={chaosOptions} onRole={setGuessRole} onChaos={setGuessChaos} onSubmit={() => run('student:submitGuess', { guessedRoleId: guessRole, guessedChaosCardId: guessChaos })} />
     </section>
   </main>;
