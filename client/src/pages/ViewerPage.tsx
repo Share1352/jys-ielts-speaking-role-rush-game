@@ -24,7 +24,7 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
         <div className='viewer-phase-wrap'>
           <p className='viewer-label'>Current phase</p>
           <p className='viewer-phase'>{round?.phase ?? publicState?.phase ?? '-'}</p>
-          <p className='viewer-reveal'>Reveal stage: {revealStage}</p>
+          <p className='viewer-reveal viewer-meta'>Reveal stage: {revealStage}</p>
         </div>
       </header>
 
@@ -34,7 +34,7 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
       </section>
 
       <section className='panel viewer-speaker-strip'>
-        <div>
+        <div className='viewer-speaker-primary'>
           <p className='viewer-label'>Current speaker</p>
           <p className='viewer-speaker-name'>{currentSpeakerName}</p>
         </div>
@@ -49,9 +49,9 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
         <ul className='viewer-scoreboard' aria-label='Scoreboard ranking'>
           {rankedPlayers.map((p: any, index: number) => (
             <li key={p.id} className='viewer-score-row'>
-              <span className='viewer-rank'>#{index + 1}</span>
+              <span className='viewer-rank' aria-label={`rank ${index + 1}`}>#{index + 1}</span>
               <span className='viewer-name'>Seat {p.seat}: {p.displayName}</span>
-              <span className='viewer-score'>{p.score} pts</span>
+              <span className='viewer-score' aria-label={`${p.score} points`}>{p.score.toString().padStart(2, '0')} pts</span>
             </li>
           ))}
         </ul>
@@ -72,9 +72,9 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
               {Object.entries(round.guesses ?? {}).map(([guesserId, guess]: [string, any]) => (
                 <li key={guesserId} className='viewer-reveal-item'>
                   <p className='viewer-reveal-name'>{publicState.players[guesserId]?.displayName ?? 'Unknown student'}</p>
-                  <p><strong>Speaker guessed:</strong> {publicState.players[guess.speakerId]?.displayName ?? '-'}</p>
-                  <p><strong>Role guess:</strong> {guess.roleGuess ?? '-'}</p>
-                  <p><strong>Chaos guess:</strong> {guess.chaosGuess ?? '-'}</p>
+                  <p className='viewer-reveal-line'><strong>Speaker guessed:</strong> {publicState.players[guess.speakerId]?.displayName ?? '-'}</p>
+                  <p className='viewer-reveal-line'><strong>Role guess:</strong> {guess.roleGuess ?? '-'}</p>
+                  <p className='viewer-reveal-line'><strong>Chaos guess:</strong> {guess.chaosGuess ?? '-'}</p>
                 </li>
               ))}
             </ul>
@@ -92,8 +92,8 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
               {Object.entries(round.revealedSecretsByPlayerId ?? {}).map(([playerId, secret]: [string, any]) => (
                 <li key={playerId} className='viewer-reveal-item'>
                   <p className='viewer-reveal-name'>{publicState.players[playerId]?.displayName ?? 'Unknown student'}</p>
-                  <p><strong>Role:</strong> {secret.roleTitle ?? '-'}</p>
-                  <p><strong>Chaos card:</strong> {secret.chaosTitle ?? '-'}</p>
+                  <p className='viewer-reveal-line'><strong>Role:</strong> {secret.roleTitle ?? '-'}</p>
+                  <p className='viewer-reveal-line'><strong>Chaos card:</strong> {secret.chaosTitle ?? '-'}</p>
                 </li>
               ))}
             </ul>
