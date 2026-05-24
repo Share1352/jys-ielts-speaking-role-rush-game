@@ -8,15 +8,18 @@ export function TimersPanel({ prepSec, speakerSec, speakingRunning }: { prepSec?
         </span>
       </div>
 
-      <div className='timer-block timer-block--prep'>
-        <p className='timer-block__label'>Prep phase</p>
-        <p className='timer-block__value'>{prepSec ?? 0}s</p>
-      </div>
+      <div className='game-card__body game-card__body--stack'>
+        <div className='timer-block timer-block--prep'>
+          <p className='timer-block__label'>Prep phase</p>
+          <p className='timer-block__value'>{prepSec ?? 0}s</p>
+        </div>
 
-      <div className={`timer-block ${speakingRunning ? 'timer-block--live' : 'timer-block--paused'}`}>
-        <p className='timer-block__label'>Speaker timer</p>
-        <p className='timer-block__value'>{speakerSec ?? 0}s</p>
+        <div className={`timer-block ${speakingRunning ? 'timer-block--live' : 'timer-block--paused'}`}>
+          <p className='timer-block__label'>Speaker timer</p>
+          <p className='timer-block__value'>{speakerSec ?? 0}s</p>
+        </div>
       </div>
+      <p className='game-card__footer-text'>Guesses can only be submitted while the speaker timer is running.</p>
     </section>
   );
 }
