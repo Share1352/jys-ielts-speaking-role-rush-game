@@ -2,6 +2,25 @@
 
 Realtime IELTS speaking classroom game built as an npm workspaces monorepo.
 
+## Game modes
+
+- **Group mode (2+ students):** the usual game. One student speaks while the
+  other students (listeners) secretly guess the speaker's hidden role and chaos
+  card. The teacher scores the listeners' guesses.
+- **1-on-1 mode (exactly 1 student):** activated automatically when only one
+  student is in the room — ideal for private online lessons. The student speaks
+  and the **teacher** guesses the student's hidden role and chaos card. The
+  student's cards stay hidden from the teacher's dashboard until the teacher
+  reveals the secret, so guessing stays fair. The speaker/follow-up wheels are
+  hidden, and the teacher's guess is scored for feedback only (it does not
+  change the student's score, which still comes from speaker bonuses minus any
+  reroll penalties).
+
+All game content (topics, roles and chaos cards) lives in `shared/src/index.ts`
+as a single source of truth, written in simple, natural English aimed at
+teenage learners. Public speaking prompts are always phrased as situations,
+never as questions (no question marks, no "should"/"do you think").
+
 ## Repository architecture
 
 ```text
