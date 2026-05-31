@@ -4,7 +4,8 @@ import type {
   PlayerRoundState,
   RoomState,
   RoundState,
-  SpeakerBonusCategory
+  SpeakerBonusCategory,
+  TeacherGuessState
 } from './state.js';
 
 export interface PublicGuessView {
@@ -20,9 +21,20 @@ export interface PublicGuessView {
   awardedPoints?: number;
 }
 
+export interface PublicTeacherGuessView {
+  submitted: boolean;
+  locked: boolean;
+  guessedRoleId?: string;
+  guessedChaosCardId?: string;
+  roleResult?: TeacherGuessState['roleResult'];
+  chaosResult?: TeacherGuessState['chaosResult'];
+}
+
 export interface PublicRoundView {
   roundNumber: number;
   phase: RoundState['phase'];
+  soloMode: boolean;
+  teacherGuess: PublicTeacherGuessView | null;
   topicId: string;
   topicTitle: string;
   topicPrompt: string;
@@ -61,6 +73,7 @@ export interface TeacherPayload {
     guesses: Record<string, GuessSubmission>;
     followUp: FollowUpState | null;
     speakerBonuses: Record<string, Partial<Record<SpeakerBonusCategory, boolean>>> | null;
+    teacherGuess: TeacherGuessState | null;
   };
   playerPrivateStateById: Record<string, Pick<PlayerRoundState, 'roleId' | 'chaosCardId' | 'rerolledRole' | 'rerolledChaos' | 'rerollRolePenalty' | 'rerollChaosPenalty' | 'hasSpoken'>>;
 }
@@ -135,9 +148,27 @@ function buildPublicRoundView(room: RoomState): PublicRoundView | null {
       )
     : {};
 
+  let teacherGuessPublic: PublicTeacherGuessView | null = null;
+  if (round.soloMode && round.teacherGuess) {
+    const tg = round.teacherGuess;
+    const submitted = Boolean(tg.guessedRoleId && tg.guessedChaosCardId);
+    teacherGuessPublic = round.revealGuesses
+      ? {
+          submitted,
+          locked: tg.locked,
+          guessedRoleId: tg.guessedRoleId ?? undefined,
+          guessedChaosCardId: tg.guessedChaosCardId ?? undefined,
+          roleResult: tg.roleResult,
+          chaosResult: tg.chaosResult
+        }
+      : { submitted, locked: tg.locked };
+  }
+
   return {
     roundNumber: round.roundNumber,
     phase: round.phase,
+    soloMode: round.soloMode,
+    teacherGuess: teacherGuessPublic,
     topicId: round.topicId,
     topicTitle: round.topicTitle,
     topicPrompt: round.topicPrompt,
@@ -180,6 +211,18 @@ export function buildTeacherPayload(room: RoomState, hostToken: string): Teacher
   const authorized = room.hostToken === hostToken;
   const round = room.activeRound;
 
+  // In solo mode the teacher is the guesser, so hide the student's role/chaos
+  // card until the secret is revealed.
+  let playerPrivateStateById = round ? round.playerRound : {};
+  if (round && round.soloMode && !round.revealSecret) {
+    playerPrivateStateById = Object.fromEntries(
+      Object.entries(round.playerRound).map(([playerId, state]) => [
+        playerId,
+        { ...state, roleId: null, chaosCardId: null }
+      ])
+    );
+  }
+
   return {
     role: 'teacher',
     hostAuthorized: authorized,
@@ -187,9 +230,10 @@ export function buildTeacherPayload(room: RoomState, hostToken: string): Teacher
     internals: {
       guesses: round ? round.guesses : {},
       followUp: round ? round.followUp : null,
-      speakerBonuses: round ? round.speakerBonuses : null
+      speakerBonuses: round ? round.speakerBonuses : null,
+      teacherGuess: round ? round.teacherGuess : null
     },
-    playerPrivateStateById: round ? round.playerRound : {}
+    playerPrivateStateById
   };
 }
 

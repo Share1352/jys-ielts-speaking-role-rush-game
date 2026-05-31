@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Socket } from 'socket.io-client';
 import { call, useRoomState } from '../lib/socket.js';
+import { roleLabel, chaosLabel } from '../lib/cardCatalog.js';
 import { WheelsPanel } from '../components/WheelsPanel.js';
 
 export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: string }) {
@@ -57,24 +58,42 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
         </ul>
       </section>
 
-      <section className='dashboard-grid'>
+      {!round?.soloMode && <section className='dashboard-grid'>
         <WheelsPanel title='Speaker Selection Animation' spinning={Boolean(round?.speakerWheelSpinning)} items={players.map((p: any) => p.displayName)} />
         <WheelsPanel title='Follow-up Selection Animation' spinning={Boolean(round?.followUp?.wheelSpinning)} items={(round?.followUp?.requesterIds ?? []).map((id: string) => publicState.players[id]?.displayName)} />
-      </section>
+      </section>}
 
-      {round?.revealGuesses ? (
+      {round?.soloMode && <section className='panel viewer-prompt'>
+        <p className='viewer-label'>Round type</p>
+        <p className='viewer-prompt-text'>1-on-1 round · the teacher is guessing the student's hidden cards.</p>
+      </section>}
+
+      {round?.revealGuesses && round?.soloMode ? (
+        <section className='panel viewer-reveal-panel stack-sm'>
+          <h2 className='viewer-section-title'>Teacher's guess</h2>
+          {round?.teacherGuess?.submitted ? (
+            <ul className='viewer-reveal-list'>
+              <li className='viewer-reveal-item'>
+                <p className='viewer-reveal-line'><strong>Role guess:</strong> {roleLabel(round.teacherGuess.guessedRoleId)} {round.teacherGuess.roleResult ? `(${round.teacherGuess.roleResult})` : ''}</p>
+                <p className='viewer-reveal-line'><strong>Chaos guess:</strong> {chaosLabel(round.teacherGuess.guessedChaosCardId)} {round.teacherGuess.chaosResult ? `(${round.teacherGuess.chaosResult})` : ''}</p>
+              </li>
+            </ul>
+          ) : <p className='empty-state'>The teacher did not submit a guess.</p>}
+        </section>
+      ) : null}
+
+      {round?.revealGuesses && !round?.soloMode ? (
         <section className='panel viewer-reveal-panel stack-sm'>
           <h2 className='viewer-section-title'>Guesses</h2>
-          {(Object.entries(round.guesses ?? {})).length === 0 ? (
+          {(round.guesses ?? []).length === 0 ? (
             <p className='empty-state'>No guesses submitted.</p>
           ) : (
             <ul className='viewer-reveal-list'>
-              {Object.entries(round.guesses ?? {}).map(([guesserId, guess]: [string, any]) => (
-                <li key={guesserId} className='viewer-reveal-item'>
-                  <p className='viewer-reveal-name'>{publicState.players[guesserId]?.displayName ?? 'Unknown student'}</p>
-                  <p className='viewer-reveal-line'><strong>Speaker guessed:</strong> {publicState.players[guess.speakerId]?.displayName ?? '-'}</p>
-                  <p className='viewer-reveal-line'><strong>Role guess:</strong> {guess.roleGuess ?? '-'}</p>
-                  <p className='viewer-reveal-line'><strong>Chaos guess:</strong> {guess.chaosGuess ?? '-'}</p>
+              {(round.guesses ?? []).map((guess: any) => (
+                <li key={`${guess.guesserPlayerId}-${guess.targetSpeakerId}`} className='viewer-reveal-item'>
+                  <p className='viewer-reveal-name'>{publicState.players[guess.guesserPlayerId]?.displayName ?? 'Unknown student'}</p>
+                  <p className='viewer-reveal-line'><strong>Role guess:</strong> {guess.guessedRoleId ? roleLabel(guess.guessedRoleId) : '-'}</p>
+                  <p className='viewer-reveal-line'><strong>Chaos guess:</strong> {guess.guessedChaosCardId ? chaosLabel(guess.guessedChaosCardId) : '-'}</p>
                 </li>
               ))}
             </ul>
@@ -92,8 +111,8 @@ export function ViewerPage({ socket, roomCode }: { socket: Socket; roomCode: str
               {Object.entries(round.revealedSecretsByPlayerId ?? {}).map(([playerId, secret]: [string, any]) => (
                 <li key={playerId} className='viewer-reveal-item'>
                   <p className='viewer-reveal-name'>{publicState.players[playerId]?.displayName ?? 'Unknown student'}</p>
-                  <p className='viewer-reveal-line'><strong>Role:</strong> {secret.roleTitle ?? '-'}</p>
-                  <p className='viewer-reveal-line'><strong>Chaos card:</strong> {secret.chaosTitle ?? '-'}</p>
+                  <p className='viewer-reveal-line'><strong>Role:</strong> {secret.roleId ? roleLabel(secret.roleId) : '-'}</p>
+                  <p className='viewer-reveal-line'><strong>Chaos card:</strong> {secret.chaosCardId ? chaosLabel(secret.chaosCardId) : '-'}</p>
                 </li>
               ))}
             </ul>

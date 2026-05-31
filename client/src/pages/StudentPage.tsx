@@ -109,13 +109,16 @@ export function StudentPage({ socket, roomCode }: { socket: Socket; roomCode: st
       <p className='microcopy'>Each reroll can be used once per round, costs 1 point, and is available during prep phase only.</p>
     </section>
 
-    <section className={`card stack-sm ${!canGuess ? 'disabled-surface' : ''}`}>
+    {round?.soloMode ? <section className='card stack-sm'>
+      <h2>1-on-1 Round</h2>
+      <p className='alert alert--info'>You are the only speaker. Play your role and complete your chaos card. Your teacher will try to guess your hidden cards, so keep them secret.</p>
+    </section> : <section className={`card stack-sm ${!canGuess ? 'disabled-surface' : ''}`}>
       <div className='row row--spread'>
         <h2>Guess the Speaker</h2>
         <span className='status-pill'>{canGuess ? 'Unlocked: Speaker timer is running' : 'Locked: Wait for speaker timer'}</span>
       </div>
       {!canGuess && <p className='alert alert--info'>Guessing opens only while the speaker timer is running. The current speaker cannot guess themselves.</p>}
       <GuessPanel canGuess={canGuess} guessRole={guessRole} guessChaos={guessChaos} roleOptions={roleOptions} chaosOptions={chaosOptions} onRole={setGuessRole} onChaos={setGuessChaos} onSubmit={() => run('student:submitGuess', { guessedRoleId: guessRole, guessedChaosCardId: guessChaos })} />
-    </section>
+    </section>}
   </main>;
 }

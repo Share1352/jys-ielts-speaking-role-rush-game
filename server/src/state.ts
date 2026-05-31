@@ -44,6 +44,14 @@ export interface FollowUpState {
   locked: boolean;
 }
 
+export interface TeacherGuessState {
+  guessedRoleId: string | null;
+  guessedChaosCardId: string | null;
+  roleResult?: GuessResult;
+  chaosResult?: GuessResult;
+  locked: boolean;
+}
+
 export interface TimerState {
   kind: 'prep' | 'speaker' | 'follow_up';
   durationSec: number;
@@ -71,6 +79,10 @@ export interface RoundState {
   revealSecret: boolean;
   followUp: FollowUpState;
   speakerBonuses: Record<string, Partial<Record<SpeakerBonusCategory, boolean>>>;
+  /** When true, the room has exactly one student and the teacher does the guessing. */
+  soloMode: boolean;
+  /** The teacher's guess about the lone student's hidden role/chaos card (solo mode only). */
+  teacherGuess: TeacherGuessState | null;
 }
 
 export interface RoomState {

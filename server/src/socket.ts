@@ -13,10 +13,12 @@ import {
   revealGuesses,
   revealSecret,
   scoreGuessForPlayer,
+  scoreTeacherGuess,
   selectFollowUpRequester,
   selectSpeaker,
   startRound,
-  submitGuess
+  submitGuess,
+  submitTeacherGuess
 } from './rooms.js';
 import { buildTeacherPayload, buildStudentPayload, buildViewerPayload } from './payloads.js';
 import { startTimer, pauseTimer, stopTimer, resetTimer } from './timers.js';
@@ -290,5 +292,14 @@ export function registerSocketHandlers(io: Server): void {
     socket.on('teacher:selectSpeaker', ({ roomCode, hostToken, speakerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); selectSpeaker(room, speakerId); emitRoleStates(io, room); }));
     socket.on('teacher:enterScoring', ({ roomCode, hostToken }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); enterScoring(room); emitRoleStates(io, room); }));
     socket.on('teacher:selectFollowUpRequester', ({ roomCode, hostToken, playerId }, ack) => withAck(ack, () => { const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room); selectFollowUpRequester(room, playerId); emitRoleStates(io, room); }));
+    socket.on('teacher:submitSoloGuess', ({ roomCode, hostToken, guessedRoleId, guessedChaosCardId }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room);
+      submitTeacherGuess(room, sanitizeGuessInput(String(guessedRoleId || '')), sanitizeGuessInput(String(guessedChaosCardId || '')));
+      emitRoleStates(io, room);
+    }));
+    socket.on('teacher:scoreSoloGuess', ({ roomCode, hostToken, roleResult, chaosResult }, ack) => withAck(ack, () => {
+      const room = getRoomOrThrow(roomCode); requireTeacher(room, hostToken); touchRoom(room);
+      scoreTeacherGuess(room, roleResult, chaosResult); emitRoleStates(io, room);
+    }));
   });
 }

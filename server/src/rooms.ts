@@ -1,4 +1,4 @@
-import type { GuessResult, GuessSubmission, PlayerRoundState, RoomPhase, RoomState, RoundState, SpeakerBonusCategory } from './state.js';
+import type { GuessResult, GuessSubmission, PlayerRoundState, RoomPhase, RoomState, RoundState, SpeakerBonusCategory, TeacherGuessState } from './state.js';
 import { createTimer, stopTimer } from './timers.js';
 
 const PREP_DURATION = 90;
@@ -48,6 +48,7 @@ export function startRound(
   for (const id of eligible) {
     playerRound[id] = { roleId: roleByPlayer[id] ?? null, chaosCardId: chaosByPlayer[id] ?? null, rerolledRole: false, rerolledChaos: false, rerollRolePenalty: 0, rerollChaosPenalty: 0, hasSpoken: false };
   }
+  const soloMode = eligible.length === 1;
   const round: RoundState = {
     roundNumber: room.roundHistory.length + 1,
     phase: 'round_setup',
@@ -61,7 +62,9 @@ export function startRound(
     prepTimer: createTimer('prep', PREP_DURATION), speakerTimer: createTimer('speaker', SPEAKER_DURATION), followUpTimer: createTimer('follow_up', FOLLOW_UP_DURATION),
     guesses: {}, revealGuesses: false, revealSecret: false,
     followUp: { requesterIds: [], selectedRequesterId: null, awardedRequesterId: null, locked: false },
-    speakerBonuses: {}
+    speakerBonuses: {},
+    soloMode,
+    teacherGuess: soloMode ? { guessedRoleId: null, guessedChaosCardId: null, locked: false } : null
   };
   room.activeRound = round;
   transitionPhase(room, 'prep');
@@ -131,7 +134,28 @@ export function requestFollowUp(room: RoomState, requesterId: string): void {
 
 export function finishSpeaking(room: RoomState): void {
   transitionPhase(room, 'speaker_finished');
-  mustRound(room).followUp.locked = true;
+  const round = mustRound(room);
+  round.followUp.locked = true;
+  if (round.soloMode && round.teacherGuess) round.teacherGuess.locked = true;
+}
+
+export function submitTeacherGuess(room: RoomState, guessedRoleId: string, guessedChaosCardId: string): void {
+  const round = mustRound(room);
+  if (!round.soloMode || !round.teacherGuess) throw new Error('Teacher guessing is only for solo rounds');
+  if (room.phase !== 'speaking' && room.phase !== 'speaker_finished') throw new Error('Teacher guess is locked');
+  if (round.teacherGuess.locked) throw new Error('Teacher guess is locked');
+  if (!round.availableRoleIds.includes(guessedRoleId)) throw new Error('Role guess is not available in this round');
+  if (!round.availableChaosCardIds.includes(guessedChaosCardId)) throw new Error('Chaos guess is not available in this round');
+  round.teacherGuess.guessedRoleId = guessedRoleId;
+  round.teacherGuess.guessedChaosCardId = guessedChaosCardId;
+}
+
+export function scoreTeacherGuess(room: RoomState, roleResult: GuessResult, chaosResult: GuessResult): void {
+  const round = mustRound(room);
+  if (!round.soloMode || !round.teacherGuess) throw new Error('Teacher guessing is only for solo rounds');
+  // The teacher is the guesser, so this only records feedback. No student score changes here.
+  round.teacherGuess.roleResult = roleResult;
+  round.teacherGuess.chaosResult = chaosResult;
 }
 
 export function selectFollowUpRequester(room: RoomState, playerId: string): void {
@@ -183,6 +207,7 @@ export function nextSpeakerOrRoundComplete(room: RoomState): void {
   round.currentSpeakerId = null;
   round.guesses = {};
   round.followUp = { requesterIds: [], selectedRequesterId: null, awardedRequesterId: null, locked: false };
+  if (round.soloMode) round.teacherGuess = { guessedRoleId: null, guessedChaosCardId: null, locked: false };
   round.revealGuesses = false;
   round.revealSecret = false;
   if (round.speakersRemaining.length === 0) {
